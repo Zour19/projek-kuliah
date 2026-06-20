@@ -1,0 +1,13 @@
+/.env
+/data/
+*.db
+*.sqlite
+*.sqlite3
+/.vscode/
+.DS_Store
+/.idea/
+vendor/
+node_modules/
+/.cache/
+.env
+data/

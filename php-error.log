@@ -1,0 +1,8 @@
+[11-Jun-2026 14:56:39 UTC] PHP Fatal error:  Uncaught ValueError: max(): Argument #1 ($value) must contain at least one element in /home/zour/Data_Kuliah/perkuliahan/slide kuliah semester 2/web pro/projek web pro/projek akhir semester/db-fallback.php:121
+Stack trace:
+#0 /home/zour/Data_Kuliah/perkuliahan/slide kuliah semester 2/web pro/projek web pro/projek akhir semester/db-fallback.php(121): max()
+#1 /home/zour/Data_Kuliah/perkuliahan/slide kuliah semester 2/web pro/projek web pro/projek akhir semester/index.php(158): add_product()
+#2 {main}
+  thrown in /home/zour/Data_Kuliah/perkuliahan/slide kuliah semester 2/web pro/projek web pro/projek akhir semester/db-fallback.php on line 121
+[11-Jun-2026 14:57:53 UTC] PHP Warning:  Cannot modify header information - headers already sent by (output started at /home/zour/Data_Kuliah/perkuliahan/slide kuliah semester 2/web pro/projek web pro/projek akhir semester/index.php:197) in /home/zour/Data_Kuliah/perkuliahan/slide kuliah semester 2/web pro/projek web pro/projek akhir semester/index.php on line 547
+[11-Jun-2026 14:58:42 UTC] PHP Warning:  Cannot modify header information - headers already sent by (output started at /home/zour/Data_Kuliah/perkuliahan/slide kuliah semester 2/web pro/projek web pro/projek akhir semester/index.php:197) in /home/zour/Data_Kuliah/perkuliahan/slide kuliah semester 2/web pro/projek web pro/projek akhir semester/index.php on line 547
