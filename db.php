@@ -1,24 +1,7 @@
 <?php
 declare(strict_types=1);
 
-require_once __DIR__ . '/config.php';
-
-const CATEGORY_IMAGE_PATHS = [
-    'bouquet' => 'assets/images/bouquets',
-    'bloom-box' => 'assets/images/bloom-box',
-    'flowers' => 'assets/images/flowers',
-    'standing-flowers' => 'assets/images/standing-flowers',
-    'accessories' => 'assets/images/accessories',
-];
-
-const UNSORTED_IMAGE_PATH = 'assets/images/unsorted';
-const CATEGORY_KEYWORDS = [
-    'bouquet' => ['bouquet', 'buket', 'rose', 'roses', 'tulip', 'calla', 'love', 'serenata', 'crimson', 'golden', 'sweet'],
-    'bloom-box' => ['bloom', 'box', 'parcel', 'gift', 'happiness', 'sweet', 'sunbeam', 'classic', 'romantic'],
-    'flowers' => ['flower', 'flowers', 'lily', 'tulip', 'sunflower', 'gypsophila', 'rose', 'cluster'],
-    'standing-flowers' => ['standing', 'stand', 'elegant', 'graceful', 'festival', 'pure', 'celebration'],
-    'accessories' => ['accessories', 'card', 'kartu', 'pita', 'vas', 'foam', 'wrap', 'wrapping'],
-];
+require_once __DIR__ . '/includes/helpers.php';
 
 if (!class_exists('SQLite3')) {
     die('PHP SQLite3 extension diperlukan. Silakan install php-sqlite3 dan aktifkan extension tersebut.');
@@ -35,38 +18,7 @@ function get_db_dir(): string
     return dirname(get_db_file());
 }
 
-function ensure_asset_directories(): void
-{
-    foreach (CATEGORY_IMAGE_PATHS as $path) {
-        $dir = __DIR__ . '/' . ltrim($path, '/');
-        if (!is_dir($dir)) {
-            mkdir($dir, 0755, true);
-        }
-    }
-
-    $unsorted = __DIR__ . '/' . UNSORTED_IMAGE_PATH;
-    if (!is_dir($unsorted)) {
-        mkdir($unsorted, 0755, true);
-    }
-}
-
-function normalize_asset_filename(string $filename): string
-{
-    return preg_replace('/[^a-zA-Z0-9._-]/', '_', basename($filename));
-}
-
-function detect_category_slug_from_filename(string $filename): ?string
-{
-    $normalized = strtolower($filename);
-    foreach (CATEGORY_KEYWORDS as $slug => $keywords) {
-        foreach ($keywords as $keyword) {
-            if (str_contains($normalized, $keyword)) {
-                return $slug;
-            }
-        }
-    }
-    return null;
-}
+// helpers.php provides asset helpers: ensure_asset_directories, normalize_asset_filename, detect_category_slug_from_filename
 
 function get_db(): SQLite3
 {

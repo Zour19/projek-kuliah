@@ -1,0 +1,47 @@
+[
+    {
+        "id": 1,
+        "name": "Bouquets",
+        "slug": "bouquets",
+        "description": "Hand-tied bouquets for every occasion.",
+        "image": "assets/images/bouquets/bouqet.jpeg",
+        "sort_order": 1,
+        "is_active": true
+    },
+    {
+        "id": 2,
+        "name": "Standing Flowers",
+        "slug": "standing-flowers",
+        "description": "Tall floral displays for celebrations and ceremonies.",
+        "image": "assets/images/standing-flowers/standingbunga.jpeg",
+        "sort_order": 2,
+        "is_active": true
+    },
+    {
+        "id": 3,
+        "name": "Bloom Box",
+        "slug": "bloom-box",
+        "description": "Curated gift boxes with seasonal blooms.",
+        "image": "assets/images/bloom-box/blumbox.jpg",
+        "sort_order": 3,
+        "is_active": true
+    },
+    {
+        "id": 4,
+        "name": "Flowers",
+        "slug": "flowers",
+        "description": "Fresh cut flowers, ready to arrange.",
+        "image": "assets/images/flowers/bunga.jpeg",
+        "sort_order": 4,
+        "is_active": true
+    },
+    {
+        "id": 5,
+        "name": "Accessories",
+        "slug": "accessories",
+        "description": "Vases, ribbons, and floral accessories.",
+        "image": "assets/images/accessories/default.png",
+        "sort_order": 5,
+        "is_active": true
+    }
+]

@@ -1,0 +1,10 @@
+[
+    {
+        "id": 1,
+        "username": "admin",
+        "email": "admin@florist.local",
+        "password": "$2y$12$YikyFRBsvN1gEUTiPs5.V.tNkpWfFwBK7KYr2DRW0xSSUFAxAZZ9O",
+        "role": "admin",
+        "created_at": "2026-06-23 12:55:19"
+    }
+]

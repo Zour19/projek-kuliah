@@ -28,10 +28,16 @@ $products = [];
 if ($category) {
     $products = get_products_by_category_id((int)$category['id']);
 }
-$featuredProducts = get_products_by_category_id((int)(get_category_by_slug('bouquet')['id'] ?? 0));
+$featuredProducts = [];
+$bouquetCategory = get_category_by_slug('bouquet');
+if ($bouquetCategory) {
+  $featuredProducts = get_products_by_category_id((int)$bouquetCategory['id']);
+}
 $allProducts = [];
 $adminError = '';
 $adminSuccess = '';
+// Ensure asset sort results variable exists to avoid undefined notices.
+$assetSortResults = [];
 if ($page === 'admin-products' && is_admin_logged_in()) {
     $allProducts = get_all_products();
 }
@@ -408,7 +414,8 @@ $blogPosts = [
       </div>
     </header>
     <nav class="nav">
-      <?= navItem('home', 'Bouquets', $page) ?>
+      <?= navItem('home', 'Home', $page) ?>
+      <?= navItem('bouquet', 'Bouquets', $page) ?>
       <?= navItem('bloom-box', 'Bloom Boxes', $page) ?>
       <?= navItem('flowers', 'Flowers', $page) ?>
       <?= navItem('standing-flowers', 'Standing Flowers', $page) ?>

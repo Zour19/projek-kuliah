@@ -1,70 +1,7 @@
 <?php
 declare(strict_types=1);
 
-require_once __DIR__ . '/config.php';
-
-const CATEGORY_IMAGE_PATHS = [
-    'bouquet' => 'assets/images/bouquets',
-    'bloom-box' => 'assets/images/bloom-box',
-    'flowers' => 'assets/images/flowers',
-    'standing-flowers' => 'assets/images/standing-flowers',
-    'accessories' => 'assets/images/accessories',
-];
-
-const UNSORTED_IMAGE_PATH = 'assets/images/unsorted';
-const CATEGORY_KEYWORDS = [
-    'bouquet' => ['bouquet', 'buket', 'rose', 'roses', 'tulip', 'calla', 'love', 'serenata', 'crimson', 'golden', 'sweet'],
-    'bloom-box' => ['bloom', 'box', 'parcel', 'gift', 'happiness', 'sweet', 'sunbeam', 'classic', 'romantic'],
-    'flowers' => ['flower', 'flowers', 'lily', 'tulip', 'sunflower', 'gypsophila', 'rose', 'cluster'],
-    'standing-flowers' => ['standing', 'stand', 'elegant', 'graceful', 'festival', 'pure', 'celebration'],
-    'accessories' => ['accessories', 'card', 'kartu', 'pita', 'vas', 'foam', 'wrap', 'wrapping'],
-];
-
-function get_data_dir(): string
-{
-    $dir = __DIR__ . '/data';
-    if (!is_dir($dir)) {
-        mkdir($dir, 0755, true);
-    }
-    return $dir;
-}
-
-function ensure_asset_directories(): void
-{
-    foreach (CATEGORY_IMAGE_PATHS as $path) {
-        $dir = __DIR__ . '/' . ltrim($path, '/');
-        if (!is_dir($dir)) {
-            mkdir($dir, 0755, true);
-        }
-    }
-
-    $unsorted = __DIR__ . '/' . UNSORTED_IMAGE_PATH;
-    if (!is_dir($unsorted)) {
-        mkdir($unsorted, 0755, true);
-    }
-}
-
-function get_json_file(string $name): string
-{
-    return get_data_dir() . '/' . $name . '.json';
-}
-
-function load_json(string $name, array $default = []): array
-{
-    $file = get_json_file($name);
-    if (!is_file($file)) {
-        save_json($name, $default);
-        return $default;
-    }
-    $content = file_get_contents($file);
-    return json_decode($content, true) ?? $default;
-}
-
-function save_json(string $name, array $data): void
-{
-    $file = get_json_file($name);
-    file_put_contents($file, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
-}
+require_once __DIR__ . '/includes/helpers.php';
 
 function get_all_categories(): array
 {
@@ -140,19 +77,19 @@ function get_customer_count(): int
     return count(array_filter($users, fn($u) => $u['role'] === 'customer'));
 }
 
-function create_customer_account(string $username, string $email, string $password): array
+function create_customer_account(string $username, string $email, string $password): bool
 {
     $users = load_json('users', []);
-    
+
     foreach ($users as $u) {
         if ($u['username'] === $username) {
-            return ['success' => false, 'message' => 'Username sudah terdaftar.'];
+            return false;
         }
         if ($u['email'] === $email) {
-            return ['success' => false, 'message' => 'Email sudah terdaftar.'];
+            return false;
         }
     }
-    
+
     $uIds = array_map(fn($u) => (int)($u['id'] ?? 0), $users);
     $maxId = empty($uIds) ? 1 : (max($uIds) + 1);
     $users[] = [
@@ -163,9 +100,9 @@ function create_customer_account(string $username, string $email, string $passwo
         'role' => 'customer',
         'created_at' => date('Y-m-d H:i:s'),
     ];
-    
+
     save_json('users', $users);
-    return ['success' => true, 'message' => 'Akun berhasil dibuat. Silakan login.'];
+    return true;
 }
 
 function ensure_admin_exists(): void
@@ -187,23 +124,14 @@ function ensure_admin_exists(): void
     }
 }
 
-function normalize_asset_filename(string $filename): string
-{
-    return preg_replace('/[^a-zA-Z0-9._-]/', '_', basename($filename));
-}
-
-function detect_category_slug_from_filename(string $filename): ?string
-{
-    $normalized = strtolower($filename);
-    foreach (CATEGORY_KEYWORDS as $slug => $keywords) {
-        foreach ($keywords as $keyword) {
-            if (str_contains($normalized, $keyword)) {
-                return $slug;
-            }
-        }
-    }
-    return null;
-}
+// normalize_asset_filename and detect_category_slug_from_filename are provided by includes/helpers.php
 
 ensure_asset_directories();
 ensure_admin_exists();
+
+if (!function_exists('is_admin_logged_in')) {
+    function is_admin_logged_in(): bool
+    {
+        return !empty($_SESSION['admin_logged_in']);
+    }
+}

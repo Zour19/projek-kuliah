@@ -1,7 +1,12 @@
 <?php
 declare(strict_types=1);
 
-require_once __DIR__ . '/db-fallback.php';
+// Prefer SQLite-backed DB if available, otherwise use JSON fallback.
+if (class_exists('SQLite3') && is_file(__DIR__ . '/db.php')) {
+    require_once __DIR__ . '/db.php';
+} else {
+    require_once __DIR__ . '/db-fallback.php';
+}
 
 header('Content-Type: application/json; charset=utf-8');
 

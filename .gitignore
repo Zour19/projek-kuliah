@@ -1,13 +1,47 @@
-/.env
-/data/
-*.db
-*.sqlite
-*.sqlite3
-/.vscode/
-.DS_Store
-/.idea/
-vendor/
+# Node modules
 node_modules/
-/.cache/
+package-lock.json
+yarn.lock
+
+# PHP Composer
+vendor/
+composer.lock
+
+# Laravel
 .env
-data/
+.env.*.php
+.env.*.local
+/bootstrap/cache/
+/storage/logs/
+/storage/framework/cache/
+/storage/framework/sessions/
+/storage/framework/views/
+/public/hot
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Build artifacts
+/public/js/
+/public/css/
+/public/mix-manifest.json
+/public/hot
+
+# Temporary files
+*.log
+npm-debug.log
+yarn-error.log
+.env.backup
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+/coverage/
+.phpunit.result.cache
