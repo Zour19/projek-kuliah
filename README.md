@@ -70,5 +70,4 @@ Catatan: jangan commit file di `data/` ataupun `.env`.
 ## Continuous Integration
 Ada workflow ringan untuk memastikan file PHP tidak memiliki syntax error sebelum merge.
 
----
-Jika mau, saya bisa membuat repository GitHub untukmu (butuh akses token) atau bantu langkah perintah push.
+ 
