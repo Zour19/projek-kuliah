@@ -14,12 +14,25 @@ session_start();
 
 $page = isset($_GET['page']) ? $_GET['page'] : 'home';
 $pages = [
-    'home', 'blogs', 'create-account', 'login', 'reset-password', 'contact-us', 'our-story',
+    'home', 'blogs', 'create-account', 'login', 'logout', 'reset-password', 'contact-us', 'our-story',
     'bouquet', 'bloom-box', 'flowers', 'standing-flowers', 'accessories', 'cart', 'checkout',
     'admin-login', 'admin-dashboard', 'add-product', 'admin-products', 'admin-assets'
 ];
 if (!in_array($page, $pages, true)) {
     $page = 'home';
+}
+
+$adminOnlyPages = ['admin-dashboard', 'add-product', 'admin-products', 'admin-assets'];
+if (in_array($page, $adminOnlyPages, true) && !is_admin_logged_in()) {
+    header('Location: ?page=admin-login');
+    exit;
+}
+
+if ($page === 'logout') {
+    session_unset();
+    session_destroy();
+    header('Location: ?page=home');
+    exit;
 }
 
 $categories = get_all_categories();
@@ -36,6 +49,9 @@ if ($bouquetCategory) {
 $allProducts = [];
 $adminError = '';
 $adminSuccess = '';
+$loginError = '';
+$registerError = '';
+$registerSuccess = '';
 // Ensure asset sort results variable exists to avoid undefined notices.
 $assetSortResults = [];
 if ($page === 'admin-products' && is_admin_logged_in()) {
@@ -105,17 +121,58 @@ function is_admin_logged_in(): bool
     return !empty($_SESSION['admin_logged_in']);
 }
 
+function is_user_logged_in(): bool
+{
+    return !empty($_SESSION['user_id']);
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($page === 'admin-login') {
         $username = trim((string) ($_POST['username'] ?? ''));
         $password = (string) ($_POST['password'] ?? '');
-        $user = get_user_by_username($username);
+        $user = get_user_by_login($username);
         if ($user && $user['role'] === 'admin' && password_verify($password, $user['password'])) {
             $_SESSION['admin_logged_in'] = true;
             header('Location: ?page=admin-dashboard');
             exit;
         }
         $adminError = 'Login admin gagal. Username atau password salah.';
+    }
+
+    if ($page === 'login') {
+        $identifier = trim((string) ($_POST['identifier'] ?? ''));
+        $password = (string) ($_POST['password'] ?? '');
+        $user = get_user_by_login($identifier);
+        if ($user && $user['role'] === 'customer' && password_verify($password, $user['password'])) {
+            $_SESSION['user_id'] = (int) $user['id'];
+            $_SESSION['user_username'] = $user['username'];
+            header('Location: ?page=home');
+            exit;
+        }
+        $loginError = 'Login gagal. Username/email atau password salah.';
+    }
+
+    if ($page === 'create-account') {
+        $username = trim((string) ($_POST['username'] ?? ''));
+        $email = trim((string) ($_POST['email'] ?? ''));
+        $password = (string) ($_POST['password'] ?? '');
+
+        if ($username === '' || $email === '' || $password === '') {
+            $registerError = 'Username, email, dan password harus diisi.';
+        } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $registerError = 'Email tidak valid.';
+        } elseif (!create_customer_account($username, $email, $password)) {
+            $registerError = 'Username atau email sudah terdaftar.';
+        } else {
+            $registerSuccess = 'Akun berhasil dibuat. Silakan login.';
+        }
+    }
+
+    if ($page === 'logout') {
+        session_unset();
+        session_destroy();
+        header('Location: ?page=home');
+        exit;
     }
 
     if ($page === 'add-product' && is_admin_logged_in()) {
@@ -231,6 +288,7 @@ $blogPosts = [
     button { font: inherit; }
     .page { max-width: 1180px; margin: 0 auto; padding: 0 24px 48px; }
     .site-header {
+      position: relative;
       display: flex;
       justify-content: center;
       align-items: center;
@@ -239,7 +297,7 @@ $blogPosts = [
     }
     .brand {
       font-family: 'Playfair Display', serif;
-      font-size: 1.65rem;
+      font-size: clamp(2rem, 2.4vw, 3rem);
       letter-spacing: .03em;
       font-weight: 700;
       cursor: pointer;
@@ -399,9 +457,20 @@ $blogPosts = [
     .footer { display: grid; grid-template-columns: repeat(4, minmax(200px, 1fr)); gap: 28px; margin-top: 64px; padding: 36px 0 0; border-top: 1px solid rgba(36, 28, 20, .12); color: var(--muted); }
     .footer h3 { margin: 0 0 16px; font-size: .82rem; text-transform: uppercase; letter-spacing: .16em; color: var(--text); }
     .footer a:hover { color: var(--text); }
+    .header-actions {
+      position: absolute;
+      right: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+    .header-actions a, .header-actions button { border: 1px solid rgba(34, 34, 34, .12); background: transparent; color: var(--text); padding: 10px 14px; border-radius: 999px; cursor: pointer; text-decoration: none; font-size: .95rem; display: inline-flex; align-items: center; gap: 8px; }
+    .header-actions a:hover, .header-actions button:hover { background: rgba(255,255,255,.9); }
     .whatsapp-fab { position: fixed; right: 24px; bottom: 24px; width: 56px; height: 56px; border-radius: 50%; background: #25d366; color: #fff; display: grid; place-items: center; text-decoration: none; box-shadow: 0 24px 38px rgba(37, 211, 102, .24); font-size: 1.5rem; }
     @media (max-width: 960px) { .hero, .footer { grid-template-columns: 1fr; } .nav { justify-content: center; } }
-    @media (max-width: 720px) { .page { padding: 0 16px 32px; } .site-header { flex-direction: column; gap: 12px; } .catalog-grid, .blog-grid { grid-template-columns: 1fr; } }
+    @media (max-width: 720px) { .page { padding: 0 16px 32px; } .site-header { flex-direction: column; align-items: stretch; gap: 12px; } .header-actions { position: static; transform: none; justify-content: flex-end; } .catalog-grid, .blog-grid { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
@@ -409,8 +478,12 @@ $blogPosts = [
     <header class="site-header">
       <div class="brand">Matahari Florist</div>
       <div class="header-actions">
-        <button aria-label="Account">👤</button>
-        <button aria-label="Cart">🛒</button>
+        <?php if (is_user_logged_in()): ?>
+          <a href="?page=logout" aria-label="Logout">👤 <?= htmlspecialchars($_SESSION['user_username'] ?? 'User') ?></a>
+        <?php else: ?>
+          <a href="?page=login" aria-label="Login">👤 Login</a>
+        <?php endif; ?>
+        <a href="?page=cart" aria-label="Cart">🛒 Cart</a>
       </div>
     </header>
     <nav class="nav">
@@ -420,9 +493,6 @@ $blogPosts = [
       <?= navItem('flowers', 'Flowers', $page) ?>
       <?= navItem('standing-flowers', 'Standing Flowers', $page) ?>
       <?= navItem('accessories', 'Accessories', $page) ?>
-      <?= navItem('blogs', 'Blogs', $page) ?>
-      <?= navItem('our-story', 'Our Story', $page) ?>
-      <?= navItem('contact-us', 'Contact Us', $page) ?>
     </nav>
 
     <?php if ($page === 'home'): ?>
@@ -480,12 +550,13 @@ $blogPosts = [
         <div class="panel-body">
           <h2>Create Account</h2>
           <p>Daftar sekarang untuk menikmati layanan pengiriman bunga cepat dan personalisasi ucapan gratis.</p>
-          <form id="create-account-form">
+          <?php if ($registerError): ?><div class="admin-message admin-error" style="margin-bottom:18px;"><?= htmlspecialchars($registerError) ?></div><?php endif; ?>
+          <?php if ($registerSuccess): ?><div class="admin-message admin-success" style="margin-bottom:18px;"><?= htmlspecialchars($registerSuccess) ?></div><?php endif; ?>
+          <form method="post" action="?page=create-account">
             <div class="field"><label for="account-username">Username</label><input id="account-username" name="username" type="text" placeholder="Username" required></div>
             <div class="field"><label for="account-email">Email</label><input id="account-email" name="email" type="email" placeholder="Email" required></div>
             <div class="field"><label for="account-password">Password</label><input id="account-password" name="password" type="password" placeholder="Password" required></div>
             <button class="wide-button primary" type="submit">Create Account</button>
-            <div id="create-account-message" style="margin-top:18px;"></div>
           </form>
         </div>
       </section>
@@ -498,11 +569,12 @@ $blogPosts = [
         <div class="panel-body">
           <h2>Login</h2>
           <p>Masuk untuk melihat status pesanan Anda dan simpan detail checkout lebih cepat.</p>
-          <form>
-            <div class="field"><label for="login-email">Email</label><input id="login-email" type="email" placeholder="Email"></div>
-            <div class="field"><label for="login-password">Password</label><input id="login-password" type="password" placeholder="Password"></div>
+          <?php if ($loginError): ?><div class="admin-message admin-error" style="margin-bottom:18px;"><?= htmlspecialchars($loginError) ?></div><?php endif; ?>
+          <form method="post" action="?page=login">
+            <div class="field"><label for="login-identifier">Username atau Email</label><input id="login-identifier" name="identifier" type="text" placeholder="Username atau Email" required></div>
+            <div class="field"><label for="login-password">Password</label><input id="login-password" name="password" type="password" placeholder="Password" required></div>
             <div class="form-actions">
-              <button class="wide-button primary" type="button">Sign in</button>
+              <button class="wide-button primary" type="submit">Sign in</button>
               <a class="text-link" href="?page=reset-password">Forgot your password?</a>
             </div>
             <div style="margin-top:24px;"><a class="button-secondary" href="?page=home" style="display:inline-flex;">Return to store</a></div>
@@ -674,6 +746,7 @@ $blogPosts = [
 
     <footer class="footer">
       <div><h3>Social</h3><p>Stay current with updates from our social channels.</p><p>Or contact us directly at <a href="tel:+6282122490002">+6282122490002</a> (WA chat/order).</p></div>
+      <div><h3>Quick Links</h3><p><a href="?page=blogs">Blogs</a></p><p><a href="?page=our-story">Our Story</a></p><p><a href="?page=contact-us">Contact Us</a></p></div>
       <div><h3>Newsletter</h3><p>Subscribe to get special offers, free giveaways, and once-in-a-lifetime deals.</p><p><a href="#">email@newsletter.com</a></p></div>
       <div><h3>Customer Care</h3><p>Call</p><p><a href="tel:+6281311996099">+6281311996099</a></p><p>Email <a href="mailto:admin@matahariflorist.com">admin@matahariflorist.com</a></p></div>
       <div><h3>Visit Us</h3><p>Jl. Sulaiman No.12A 10, RT.10/RW.3, Sukabumi Utara</p><p>Kec. KB. Jeruk, Kota Jakarta Barat, Jakarta</p><p>Opening Hours Mon - Sunday: 08.00 - 20.00</p></div>
@@ -687,40 +760,6 @@ $blogPosts = [
           location.href = '?page=home';
         });
       }
-
-      var form = document.getElementById('create-account-form');
-      if (!form) {
-        return;
-      }
-
-      var message = document.getElementById('create-account-message');
-      form.addEventListener('submit', function(event) {
-        event.preventDefault();
-        var payload = {
-          username: document.getElementById('account-username').value,
-          email: document.getElementById('account-email').value,
-          password: document.getElementById('account-password').value
-        };
-
-        fetch('api.php?action=create_account', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        }).then(function(response) {
-          return response.json();
-        }).then(function(json) {
-          if (json.success) {
-            message.textContent = json.message;
-            message.style.color = '#1f5f32';
-          } else {
-            message.textContent = json.message;
-            message.style.color = '#7d2222';
-          }
-        }).catch(function() {
-          message.textContent = 'Server tidak merespons. Coba lagi nanti.';
-          message.style.color = '#7d2222';
-        });
-      });
     });
   </script>
   <a class="whatsapp-fab" href="https://wa.me/6282122490002" target="_blank" rel="noreferrer" aria-label="WhatsApp">💬</a>
