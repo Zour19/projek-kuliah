@@ -73,6 +73,37 @@ function ensure_asset_directories(): void
     }
 }
 
+function normalize_upload_files(array $filePost): array
+{
+    $files = [];
+    if (!isset($filePost['name'])) {
+        return $files;
+    }
+
+    if (is_array($filePost['name'])) {
+        $count = count($filePost['name']);
+        for ($i = 0; $i < $count; $i += 1) {
+            $files[] = [
+                'name' => $filePost['name'][$i] ?? '',
+                'type' => $filePost['type'][$i] ?? '',
+                'tmp_name' => $filePost['tmp_name'][$i] ?? '',
+                'error' => $filePost['error'][$i] ?? UPLOAD_ERR_NO_FILE,
+                'size' => $filePost['size'][$i] ?? 0,
+            ];
+        }
+    } else {
+        $files[] = [
+            'name' => $filePost['name'],
+            'type' => $filePost['type'] ?? '',
+            'tmp_name' => $filePost['tmp_name'] ?? '',
+            'error' => $filePost['error'] ?? UPLOAD_ERR_NO_FILE,
+            'size' => $filePost['size'] ?? 0,
+        ];
+    }
+
+    return $files;
+}
+
 function normalize_asset_filename(string $filename): string
 {
     $name = preg_replace('/[^a-zA-Z0-9._-]/', '_', basename($filename));
@@ -90,7 +121,82 @@ function detect_category_slug_from_filename(string $filename): ?string
             }
         }
     }
+
     return null;
+}
+
+function move_uploaded_asset(array $uploadedFile): array
+{
+    if ($uploadedFile['error'] !== UPLOAD_ERR_OK || !is_uploaded_file($uploadedFile['tmp_name'])) {
+        return [
+            'name' => $uploadedFile['name'] ?? '',
+            'status' => 'File gagal diunggah.',
+        ];
+    }
+
+    $filename = normalize_asset_filename($uploadedFile['name']);
+    $slug = detect_category_slug_from_filename($filename);
+    $targetFolder = $slug ? CATEGORY_IMAGE_PATHS[$slug] : UNSORTED_IMAGE_PATH;
+    $targetDir = __DIR__ . '/../' . ltrim($targetFolder, '/');
+    if (!is_dir($targetDir)) {
+        mkdir($targetDir, 0755, true);
+    }
+
+    $destination = $targetDir . '/' . uniqid('', true) . '-' . $filename;
+    if (!move_uploaded_file($uploadedFile['tmp_name'], $destination)) {
+        return [
+            'name' => $uploadedFile['name'] ?? '',
+            'status' => 'Gagal memindahkan file.',
+        ];
+    }
+
+    return [
+        'name' => $uploadedFile['name'],
+        'status' => 'Berhasil dipindahkan',
+        'target' => $targetFolder,
+        'path' => $targetFolder . '/' . basename($destination),
+    ];
+}
+
+function scan_unsorted_assets(): array
+{
+    $results = [];
+    $source = __DIR__ . '/../' . UNSORTED_IMAGE_PATH;
+    if (!is_dir($source)) {
+        return $results;
+    }
+
+    $iterator = new DirectoryIterator($source);
+    foreach ($iterator as $fileInfo) {
+        if ($fileInfo->isDot() || !$fileInfo->isFile()) {
+            continue;
+        }
+
+        $filename = $fileInfo->getFilename();
+        $slug = detect_category_slug_from_filename($filename);
+        $targetFolder = $slug ? CATEGORY_IMAGE_PATHS[$slug] : UNSORTED_IMAGE_PATH;
+        $targetDir = __DIR__ . '/../' . ltrim($targetFolder, '/');
+
+        if (!is_dir($targetDir)) {
+            mkdir($targetDir, 0755, true);
+        }
+
+        $destination = $targetDir . '/' . uniqid('', true) . '-' . normalize_asset_filename($filename);
+        if (rename($fileInfo->getPathname(), $destination)) {
+            $results[] = [
+                'name' => $filename,
+                'status' => 'Berhasil dipindahkan',
+                'target' => $targetFolder,
+            ];
+        } else {
+            $results[] = [
+                'name' => $filename,
+                'status' => 'Gagal memindahkan file.',
+            ];
+        }
+    }
+
+    return $results;
 }
 
 if (!function_exists('is_admin_logged_in')) {

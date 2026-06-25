@@ -32,11 +32,18 @@ composer.lock
 /public/mix-manifest.json
 /public/hot
 
+# Python virtual environment
+.venv/
+venv/
+__pycache__/
+
 # Temporary files
 *.log
 npm-debug.log
 yarn-error.log
 .env.backup
+
+data/*.db
 
 # OS
 .DS_Store

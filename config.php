@@ -10,7 +10,8 @@ function load_dotenv(string $path): array
     $lines = file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
     $result = [];
     foreach ($lines as $line) {
-        if (strpos(trim($line), '#') === 0) {
+        $line = trim($line);
+        if ($line === '' || str_starts_with($line, '#')) {
             continue;
         }
         if (!str_contains($line, '=')) {
@@ -27,5 +28,21 @@ $GLOBALS['APP_ENV'] = load_dotenv(__DIR__ . '/.env');
 
 function config(string $key, $default = null)
 {
-    return $GLOBALS['APP_ENV'][$key] ?? $default;
+    $env = $GLOBALS['APP_ENV'];
+
+    if (array_key_exists($key, $env)) {
+        return $env[$key];
+    }
+
+    $aliases = [
+        'DB_PATH' => 'DB_DATABASE',
+        'DB_DATABASE' => 'DB_DATABASE',
+        'DB_CONNECTION' => 'DB_CONNECTION',
+    ];
+
+    if (isset($aliases[$key]) && array_key_exists($aliases[$key], $env)) {
+        return $env[$aliases[$key]];
+    }
+
+    return $default;
 }
