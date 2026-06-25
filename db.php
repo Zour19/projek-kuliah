@@ -3,13 +3,14 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/includes/helpers.php';
 
-if (!class_exists('SQLite3')) {
-    die('PHP SQLite3 extension diperlukan. Silakan install php-sqlite3 dan aktifkan extension tersebut.');
+function use_sqlite(): bool
+{
+    return config('DB_CONNECTION', 'sqlite') === 'sqlite' && class_exists('SQLite3');
 }
 
 function get_db_file(): string
 {
-    $path = config('DB_PATH', 'data/florist.db');
+    $path = config('DB_DATABASE', config('DB_PATH', 'data/florist.db'));
     return __DIR__ . '/' . ltrim($path, '/');
 }
 
@@ -18,10 +19,12 @@ function get_db_dir(): string
     return dirname(get_db_file());
 }
 
-// helpers.php provides asset helpers: ensure_asset_directories, normalize_asset_filename, detect_category_slug_from_filename
-
-function get_db(): SQLite3
+function get_db(): ?SQLite3
 {
+    if (!use_sqlite()) {
+        return null;
+    }
+
     if (!is_dir(get_db_dir())) {
         mkdir(get_db_dir(), 0755, true);
     }
@@ -139,87 +142,213 @@ function seed_products(SQLite3 $db): void
     }
 }
 
+function get_all_categories(): array
+{
+    $db = get_db();
+    if ($db) {
+        $result = $db->query('SELECT * FROM categories ORDER BY name ASC');
+        $categories = [];
+        while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+            $categories[] = $row;
+        }
+        return $categories;
+    }
+
+    $categories = load_json('categories', []);
+    if (empty($categories)) {
+        $categories = [
+            ['id' => 1, 'slug' => 'bouquet', 'name' => 'Bouquets', 'image_folder' => CATEGORY_IMAGE_PATHS['bouquet']],
+            ['id' => 2, 'slug' => 'bloom-box', 'name' => 'Bloom Boxes', 'image_folder' => CATEGORY_IMAGE_PATHS['bloom-box']],
+            ['id' => 3, 'slug' => 'flowers', 'name' => 'Flowers', 'image_folder' => CATEGORY_IMAGE_PATHS['flowers']],
+            ['id' => 4, 'slug' => 'standing-flowers', 'name' => 'Standing Flowers', 'image_folder' => CATEGORY_IMAGE_PATHS['standing-flowers']],
+            ['id' => 5, 'slug' => 'accessories', 'name' => 'Accessories', 'image_folder' => CATEGORY_IMAGE_PATHS['accessories']],
+        ];
+        save_json('categories', $categories);
+    }
+
+    return $categories;
+}
+
 function get_category_by_slug(string $slug): ?array
 {
     $db = get_db();
-    $stmt = $db->prepare('SELECT * FROM categories WHERE slug = :slug');
-    $stmt->bindValue(':slug', $slug, SQLITE3_TEXT);
-    $result = $stmt->execute();
-    $row = $result->fetchArray(SQLITE3_ASSOC);
-    return $row ?: null;
+    if ($db) {
+        $stmt = $db->prepare('SELECT * FROM categories WHERE slug = :slug');
+        $stmt->bindValue(':slug', $slug, SQLITE3_TEXT);
+        $result = $stmt->execute();
+        $row = $result->fetchArray(SQLITE3_ASSOC);
+        return $row ?: null;
+    }
+
+    foreach (get_all_categories() as $category) {
+        if ($category['slug'] === $slug) {
+            return $category;
+        }
+    }
+
+    return null;
 }
 
 function get_products_by_category_id(int $categoryId): array
 {
     $db = get_db();
-    $stmt = $db->prepare('SELECT * FROM products WHERE category_id = :category_id ORDER BY created_at DESC');
-    $stmt->bindValue(':category_id', $categoryId, SQLITE3_INTEGER);
-    $result = $stmt->execute();
-    $products = [];
-    while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
-        $products[] = $row;
+    if ($db) {
+        $stmt = $db->prepare('SELECT * FROM products WHERE category_id = :category_id ORDER BY created_at DESC');
+        $stmt->bindValue(':category_id', $categoryId, SQLITE3_INTEGER);
+        $result = $stmt->execute();
+        $products = [];
+        while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+            $products[] = $row;
+        }
+        return $products;
     }
-    return $products;
+
+    $products = load_json('products', []);
+    return array_values(array_filter($products, fn($product) => (int)($product['category_id'] ?? 0) === $categoryId));
 }
 
 function get_all_products(): array
 {
     $db = get_db();
-    $result = $db->query('SELECT p.*, c.slug AS category_slug, c.name AS category_name FROM products p JOIN categories c ON p.category_id = c.id ORDER BY p.created_at DESC');
-    $products = [];
-    while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
-        $products[] = $row;
+    if ($db) {
+        $result = $db->query('SELECT p.*, c.slug AS category_slug, c.name AS category_name FROM products p JOIN categories c ON p.category_id = c.id ORDER BY p.created_at DESC');
+        $products = [];
+        while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+            $products[] = $row;
+        }
+        return $products;
     }
-    return $products;
+
+    $categories = get_all_categories();
+    $categoryIndex = [];
+    foreach ($categories as $category) {
+        $categoryIndex[(int)($category['id'] ?? 0)] = $category;
+    }
+
+    $products = load_json('products', []);
+    return array_map(function ($product) use ($categoryIndex) {
+        $categoryId = (int)($product['category_id'] ?? 0);
+        $category = $categoryIndex[$categoryId] ?? null;
+        return array_merge($product, [
+            'category_slug' => $category['slug'] ?? '',
+            'category_name' => $category['name'] ?? '',
+        ]);
+    }, $products);
 }
 
 function get_customer_count(): int
 {
     $db = get_db();
-    return (int) $db->querySingle("SELECT COUNT(*) FROM users WHERE role = 'customer'");
+    if ($db) {
+        return (int) $db->querySingle("SELECT COUNT(*) FROM users WHERE role = 'customer'");
+    }
+
+    $users = load_json('users', []);
+    return count(array_filter($users, fn($user) => ($user['role'] ?? '') === 'customer'));
 }
 
 function create_customer_account(string $username, string $email, string $password): bool
 {
+    if (is_username_taken($username) || is_email_taken($email)) {
+        return false;
+    }
+
     $db = get_db();
-    $stmt = $db->prepare('INSERT INTO users (username, password, email, role, created_at) VALUES (:username, :password, :email, :role, :created_at)');
-    $stmt->bindValue(':username', $username, SQLITE3_TEXT);
-    $stmt->bindValue(':password', password_hash($password, PASSWORD_DEFAULT), SQLITE3_TEXT);
-    $stmt->bindValue(':email', $email, SQLITE3_TEXT);
-    $stmt->bindValue(':role', 'customer', SQLITE3_TEXT);
-    $stmt->bindValue(':created_at', date('Y-m-d H:i:s'), SQLITE3_TEXT);
-    return (bool) $stmt->execute();
+    if ($db) {
+        $stmt = $db->prepare('INSERT INTO users (username, password, email, role, created_at) VALUES (:username, :password, :email, :role, :created_at)');
+        $stmt->bindValue(':username', $username, SQLITE3_TEXT);
+        $stmt->bindValue(':password', password_hash($password, PASSWORD_DEFAULT), SQLITE3_TEXT);
+        $stmt->bindValue(':email', $email, SQLITE3_TEXT);
+        $stmt->bindValue(':role', 'customer', SQLITE3_TEXT);
+        $stmt->bindValue(':created_at', date('Y-m-d H:i:s'), SQLITE3_TEXT);
+        return (bool) $stmt->execute();
+    }
+
+    $users = load_json('users', []);
+    $ids = array_map(fn($user) => (int)($user['id'] ?? 0), $users);
+    $nextId = empty($ids) ? 1 : max($ids) + 1;
+    $users[] = [
+        'id' => $nextId,
+        'username' => $username,
+        'email' => $email,
+        'password' => password_hash($password, PASSWORD_BCRYPT),
+        'role' => 'customer',
+        'created_at' => date('Y-m-d H:i:s'),
+    ];
+    save_json('users', $users);
+    return true;
 }
 
 function get_user_by_username(string $username): ?array
 {
     $db = get_db();
-    $stmt = $db->prepare('SELECT * FROM users WHERE username = :username');
-    $stmt->bindValue(':username', $username, SQLITE3_TEXT);
-    $result = $stmt->execute();
-    $row = $result->fetchArray(SQLITE3_ASSOC);
-    return $row ?: null;
+    if ($db) {
+        $stmt = $db->prepare('SELECT * FROM users WHERE username = :username');
+        $stmt->bindValue(':username', $username, SQLITE3_TEXT);
+        $result = $stmt->execute();
+        $row = $result->fetchArray(SQLITE3_ASSOC);
+        return $row ?: null;
+    }
+
+    $users = load_json('users', []);
+    foreach ($users as $user) {
+        if (($user['username'] ?? '') === $username) {
+            return $user;
+        }
+    }
+
+    return null;
+}
+
+function is_username_taken(string $username): bool
+{
+    return get_user_by_username($username) !== null;
+}
+
+function is_email_taken(string $email): bool
+{
+    $db = get_db();
+    if ($db) {
+        $stmt = $db->prepare('SELECT id FROM users WHERE email = :email');
+        $stmt->bindValue(':email', $email, SQLITE3_TEXT);
+        $result = $stmt->execute();
+        return (bool) $result->fetchArray(SQLITE3_ASSOC);
+    }
+
+    $users = load_json('users', []);
+    foreach ($users as $user) {
+        if (($user['email'] ?? '') === $email) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 function add_product(int $categoryId, string $name, int $price, string $imagePath): bool
 {
     $db = get_db();
-    $stmt = $db->prepare('INSERT INTO products (category_id, name, price, image, created_at) VALUES (:category_id, :name, :price, :image, :created_at)');
-    $stmt->bindValue(':category_id', $categoryId, SQLITE3_INTEGER);
-    $stmt->bindValue(':name', $name, SQLITE3_TEXT);
-    $stmt->bindValue(':price', $price, SQLITE3_INTEGER);
-    $stmt->bindValue(':image', $imagePath, SQLITE3_TEXT);
-    $stmt->bindValue(':created_at', date('Y-m-d H:i:s'), SQLITE3_TEXT);
-    return (bool) $stmt->execute();
-}
-
-function get_all_categories(): array
-{
-    $db = get_db();
-    $result = $db->query('SELECT * FROM categories ORDER BY name ASC');
-    $categories = [];
-    while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
-        $categories[] = $row;
+    if ($db) {
+        $stmt = $db->prepare('INSERT INTO products (category_id, name, price, image, created_at) VALUES (:category_id, :name, :price, :image, :created_at)');
+        $stmt->bindValue(':category_id', $categoryId, SQLITE3_INTEGER);
+        $stmt->bindValue(':name', $name, SQLITE3_TEXT);
+        $stmt->bindValue(':price', $price, SQLITE3_INTEGER);
+        $stmt->bindValue(':image', $imagePath, SQLITE3_TEXT);
+        $stmt->bindValue(':created_at', date('Y-m-d H:i:s'), SQLITE3_TEXT);
+        return (bool) $stmt->execute();
     }
-    return $categories;
+
+    $products = load_json('products', []);
+    $ids = array_map(fn($product) => (int)($product['id'] ?? 0), $products);
+    $nextId = empty($ids) ? 1 : max($ids) + 1;
+    $products[] = [
+        'id' => $nextId,
+        'category_id' => $categoryId,
+        'name' => $name,
+        'price' => $price,
+        'image' => $imagePath,
+        'created_at' => date('Y-m-d H:i:s'),
+    ];
+    save_json('products', $products);
+    return true;
 }

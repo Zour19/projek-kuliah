@@ -1,6 +1,6 @@
 <?php
 declare(strict_types=1);
-require_once __DIR__ . '/db-fallback.php';
+require_once __DIR__ . '/db.php';
 
 // Development: show and log PHP errors to help diagnose HTTP 500 issues.
 // Remove or disable in production.
@@ -14,7 +14,7 @@ session_start();
 
 $page = isset($_GET['page']) ? $_GET['page'] : 'home';
 $pages = [
-    'home', 'blogs', 'create-account', 'login', 'reset-password', 'contact-us', 'our-story',
+    'home', 'shop', 'blogs', 'create-account', 'login', 'reset-password', 'contact-us', 'our-story',
     'bouquet', 'bloom-box', 'flowers', 'standing-flowers', 'accessories', 'cart', 'checkout',
     'admin-login', 'admin-dashboard', 'add-product', 'admin-products', 'admin-assets'
 ];
@@ -52,23 +52,6 @@ function formatPrice(int $value): string
 {
     return 'Rp ' . number_format($value, 0, ',', '.');
 }
-function normalize_upload_files(array $filePost): array
-{
-    $files = [];
-    $fileCount = is_array($filePost['name']) ? count($filePost['name']) : 0;
-
-    for ($i = 0; $i < $fileCount; $i += 1) {
-        $files[] = [
-            'name' => $filePost['name'][$i],
-            'type' => $filePost['type'][$i],
-            'tmp_name' => $filePost['tmp_name'][$i],
-            'error' => $filePost['error'][$i],
-            'size' => $filePost['size'][$i],
-        ];
-    }
-
-    return $files;
-}
 function pageTitle(string $page): string
 {
     $titles = [
@@ -98,11 +81,6 @@ function pageTitle(string $page): string
     }
 
     return 'Matahari Florist';
-}
-
-function is_admin_logged_in(): bool
-{
-    return !empty($_SESSION['admin_logged_in']);
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -204,217 +182,20 @@ $blogPosts = [
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
-  <style>
-    :root {
-      --bg: #f7f3ed;
-      --surface: #ffffff;
-      --text: #1f1b18;
-      --muted: #6e645b;
-      --accent: #d8b657;
-      --accent-dark: #ba9d45;
-      --border: rgba(34, 34, 34, 0.08);
-      --shadow: 0 24px 40px rgba(39, 30, 24, 0.08);
-      --radius: 28px;
-      --radius-sm: 14px;
-    }
-    * { box-sizing: border-box; }
-    html { scroll-behavior: smooth; }
-    body {
-      margin: 0;
-      min-height: 100vh;
-      font-family: 'Inter', sans-serif;
-      background: var(--bg);
-      color: var(--text);
-    }
-    img { max-width: 100%; display: block; }
-    a { color: inherit; text-decoration: none; }
-    button { font: inherit; }
-    .page { max-width: 1180px; margin: 0 auto; padding: 0 24px 48px; }
-    .site-header {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      gap: 36px;
-      padding: 28px 0 12px;
-    }
-    .brand {
-      font-family: 'Playfair Display', serif;
-      font-size: 1.65rem;
-      letter-spacing: .03em;
-      font-weight: 700;
-      cursor: pointer;
-    }
-    .nav {
-      display: flex;
-      gap: 24px;
-      flex-wrap: wrap;
-      justify-content: center;
-      margin: 18px auto 0;
-    }
-    .nav-link {
-      font-size: .82rem;
-      font-weight: 600;
-      letter-spacing: .2em;
-      text-transform: uppercase;
-      color: var(--muted);
-      transition: color .2s;
-    }
-    .nav-link:hover,
-    .nav-link.active { color: var(--text); }
-    .page-title {
-      text-align: center;
-      margin: 68px auto 24px;
-      max-width: 720px;
-    }
-    .page-title h1 { margin: 0; }
-    .page-title p { color: var(--muted); font-size: 1rem; margin: 18px auto 0; max-width: 600px; line-height: 1.8; }
-    .hero {
-      display: grid;
-      grid-template-columns: 1.05fr .95fr;
-      align-items: center;
-      gap: 36px;
-      margin-top: 48px;
-    }
-    .hero-copy { max-width: 560px; }
-    .hero-subtitle {
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-      font-size: .82rem;
-      letter-spacing: .16em;
-      text-transform: uppercase;
-      color: var(--muted);
-      margin-bottom: 20px;
-    }
-    .hero-copy h2 {
-      font-family: 'Playfair Display', serif;
-      font-size: clamp(3rem, 4vw, 4.8rem);
-      margin: 0 0 22px;
-      line-height: .95;
-    }
-    .hero-copy p { color: var(--muted); font-size: 1rem; line-height: 1.8; margin-bottom: 28px; }
-    .hero-actions { display: flex; flex-wrap: wrap; gap: 18px; }
-    .button-primary,
-    .button-secondary {
-      border: none;
-      border-radius: 999px;
-      cursor: pointer;
-      font-weight: 600;
-      letter-spacing: .02em;
-      transition: transform .2s, background .2s;
-    }
-    .button-primary {
-      background: var(--accent);
-      color: #fff;
-      padding: 14px 30px;
-    }
-    .button-primary:hover { transform: translateY(-2px); background: var(--accent-dark); }
-    .button-secondary {
-      background: rgba(255,255,255,.96);
-      color: var(--text);
-      box-shadow: 0 10px 30px rgba(45, 35, 25, .08);
-      padding: 14px 30px;
-      border: 1px solid var(--border);
-    }
-    .button-secondary:hover { transform: translateY(-2px); }
-    .hero-visual {
-      position: relative;
-      border-radius: 32px;
-      overflow: hidden;
-      box-shadow: var(--shadow);
-      min-height: 520px;
-      background: #f0e9df;
-    }
-    .hero-visual img { width: 100%; height: 100%; object-fit: cover; }
-    .catalog-grid,
-    .blog-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
-    .product-card,
-    .blog-card,
-    .form-panel,
-    .summary-panel,
-    .content-panel {
-      background: #fff;
-      border-radius: 24px;
-      box-shadow: 0 18px 45px rgba(48, 34, 20, .06);
-      overflow: hidden;
-    }
-    .product-card .product-image,
-    .blog-card img { width: 100%; height: 240px; object-fit: cover; background: linear-gradient(135deg, #f0d9a0, #f8f4ed); }
-    .product-card .product-image { display: grid; place-items: center; }
-    .card-body { padding: 24px; }
-    .product-card h3,
-    .content-panel h2,
-    .blog-card h3 { margin: 0 0 14px; font-size: 1.2rem; }
-    .product-card p,
-    .content-panel p,
-    .blog-card p,
-    .summary-panel p { margin: 0; color: var(--muted); line-height: 1.75; font-size: .95rem; }
-    .price-strip {
-      background: #f5e4b8;
-      color: #3f2f1c;
-      padding: 16px 20px;
-      font-weight: 600;
-      font-size: .99rem;
-      text-align: center;
-    }
-    .form-panel { max-width: 520px; margin: 0 auto; }
-    .panel-body { padding: 40px 38px 42px; }
-    .form-panel h2 { margin: 0 0 10px; font-size: 2rem; }
-    .section-admin-assets { max-width: 720px; margin: 0 auto; }
-    .upload-form { display: grid; gap: 18px; }
-    .upload-drop-area {
-      border: 2px dashed var(--border);
-      border-radius: 24px;
-      padding: 36px 24px;
-      text-align: center;
-      background: #fbf7ef;
-      cursor: pointer;
-      transition: border-color .2s, background .2s, transform .2s;
-    }
-    .upload-drop-area.highlight { border-color: var(--accent-dark); background: #fff6dc; transform: scale(1.01); }
-    .upload-drop-area p { margin: 0 0 10px; color: var(--muted); }
-    .upload-drop-area button { margin-top: 10px; }
-    .asset-sort-results { background: #fff; border-radius: 24px; padding: 24px; }
-    .asset-sort-results h3 { margin-top: 0; }
-    .asset-sort-results ul { margin: 16px 0 0; padding-left: 18px; color: var(--text); }
-    .field { margin-bottom: 18px; }
-    .field label { display: block; margin-bottom: 10px; font-size: .9rem; color: var(--muted); }
-    .field input,
-    .field select { width: 100%; padding: 16px 18px; font-size: 1rem; border: 1px solid var(--border); border-radius: 14px; outline: none; }
-    .form-actions { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-top: 10px; }
-    .text-link { color: var(--text); font-weight: 600; }
-    .text-link:hover { text-decoration: underline; }
-    .wide-button { width: 100%; padding: 14px 20px; border-radius: 14px; border: none; font-weight: 600; cursor: pointer; }
-    .wide-button.primary { background: var(--accent); color: #fff; }
-    .wide-button.secondary { background: #fff; border: 1px solid var(--border); }
-    .content-panel { padding: 24px; }
-    .admin-message { margin-bottom: 20px; padding: 16px 20px; border-radius: 18px; }
-    .admin-success { background: #e8f7e9; color: #1f5f32; }
-    .admin-error { background: #f9e4e4; color: #7d2222; }
-    .summary-panel table { width: 100%; border-collapse: collapse; }
-    .summary-panel th,
-    .summary-panel td { padding: 14px 0; border-bottom: 1px solid rgba(45, 35, 25, .08); text-align: left; font-size: .95rem; color: var(--muted); }
-    .summary-panel th { color: var(--text); }
-    .summary-panel .total-row td { font-weight: 700; color: var(--text); }
-    .footer { display: grid; grid-template-columns: repeat(4, minmax(200px, 1fr)); gap: 28px; margin-top: 64px; padding: 36px 0 0; border-top: 1px solid rgba(36, 28, 20, .12); color: var(--muted); }
-    .footer h3 { margin: 0 0 16px; font-size: .82rem; text-transform: uppercase; letter-spacing: .16em; color: var(--text); }
-    .footer a:hover { color: var(--text); }
-    .whatsapp-fab { position: fixed; right: 24px; bottom: 24px; width: 56px; height: 56px; border-radius: 50%; background: #25d366; color: #fff; display: grid; place-items: center; text-decoration: none; box-shadow: 0 24px 38px rgba(37, 211, 102, .24); font-size: 1.5rem; }
-    @media (max-width: 960px) { .hero, .footer { grid-template-columns: 1fr; } .nav { justify-content: center; } }
-    @media (max-width: 720px) { .page { padding: 0 16px 32px; } .site-header { flex-direction: column; gap: 12px; } .catalog-grid, .blog-grid { grid-template-columns: 1fr; } }
-  </style>
+  <link rel="stylesheet" href="assets/css/style.css">
 </head>
 <body>
   <main class="page">
     <header class="site-header">
       <div class="brand">Matahari Florist</div>
       <div class="header-actions">
-        <button aria-label="Account">👤</button>
-        <button aria-label="Cart">🛒</button>
+        <a class="icon-button" href="?page=create-account" aria-label="Account">👤</a>
+        <a class="icon-button" href="?page=cart" aria-label="Cart">🛒<span class="cart-badge" id="cart-count">0</span></a>
       </div>
     </header>
     <nav class="nav">
       <?= navItem('home', 'Home', $page) ?>
+      <?= navItem('shop', 'Shop', $page) ?>
       <?= navItem('bouquet', 'Bouquets', $page) ?>
       <?= navItem('bloom-box', 'Bloom Boxes', $page) ?>
       <?= navItem('flowers', 'Flowers', $page) ?>
@@ -509,6 +290,23 @@ $blogPosts = [
           </form>
         </div>
       </section>
+    <?php elseif ($page === 'shop'): ?>
+      <section class="page-title">
+        <h1>Shop</h1>
+        <p>Skenario belanja ringan: pilih produk, tambahkan ke keranjang, lalu lanjutkan ke checkout.</p>
+      </section>
+      <section class="catalog-grid shop-grid" id="shop-items">
+        <?php foreach (get_all_products() as $item): ?>
+          <article class="product-card">
+            <div class="product-image" style="background-image: url('<?= htmlspecialchars($item['image'] ?: 'assets/hero.png') ?>'); background-size: cover;"></div>
+            <div class="card-body">
+              <h3><?= htmlspecialchars($item['name']) ?></h3>
+              <div class="price-strip"><?= formatPrice((int)$item['price']) ?></div>
+              <button class="wide-button primary add-to-cart" type="button" data-product='<?= json_encode(['id'=>(int)$item['id'],'name'=>$item['name'],'price'=>(int)$item['price']], JSON_HEX_APOS|JSON_HEX_QUOT|JSON_UNESCAPED_UNICODE) ?>'>Tambah ke Keranjang</button>
+            </div>
+          </article>
+        <?php endforeach; ?>
+      </section>
     <?php elseif ($page === 'reset-password'): ?>
       <section class="page-title">
         <h1>Reset Your Password</h1>
@@ -539,10 +337,51 @@ $blogPosts = [
       <div class="content-panel"><div class="panel-body"><h2>From local garden to your hands</h2><p>Kami memulai perjalanan karena cinta akan bunga segar yang bisa memeriahkan suasana hati. Setiap rangkaian dirakit oleh tim florist berpengalaman dengan detail personal yang membuat hadiah Anda tetap berkesan.</p><h2>Committed to quality</h2><p>Kualitas dan kesegaran selalu menjadi prioritas. Bunga kami dipilih setiap hari, disimpan dengan suhu ideal, dan dikirimkan dengan kemasan elegan agar sampai tujuan dalam kondisi prima.</p></div></div>
     <?php elseif ($page === 'cart'): ?>
       <section class="page-title"><h1>Keranjang Pesanan</h1><p>Review item Anda sebelum lanjut ke proses pembayaran. Pastikan alamat dan jumlah sudah sesuai.</p></section>
-      <section class="summary-panel"><div class="panel-body"><table><thead><tr><th>Nama Produk</th><th>Qty</th><th>Harga</th></tr></thead><tbody><?php $cartItems = [['name'=>'Golden Rays Bouquet','price'=>469000,'qty'=>1],['name'=>'Calla Lily Bouquet','price'=>599000,'qty'=>1]]; foreach ($cartItems as $item): ?><tr><td><?= htmlspecialchars($item['name']) ?></td><td><?= $item['qty'] ?></td><td><?= formatPrice($item['price']) ?></td></tr><?php endforeach; ?><tr class="total-row"><td>Total</td><td></td><td><?= formatPrice(array_sum(array_map(fn($item) => $item['price'] * $item['qty'], $cartItems))) ?></td></tr></tbody></table><div class="form-actions" style="margin-top:24px;"><a class="wide-button primary" href="?page=checkout">Checkout</a></div></div></section>
+      <section class="summary-panel">
+        <div class="panel-body">
+          <table>
+            <thead><tr><th>Nama Produk</th><th>Qty</th><th>Harga</th></tr></thead>
+            <tbody id="cart-items">
+              <tr><td colspan="3" style="text-align:center;color:var(--muted);">Keranjang masih kosong. Tambahkan produk dari halaman Shop.</td></tr>
+            </tbody>
+            <tfoot>
+              <tr class="total-row"><td>Total</td><td></td><td id="cart-total">Rp 0</td></tr>
+            </tfoot>
+          </table>
+          <div class="form-actions" style="margin-top:24px; gap:12px; display:flex; flex-wrap:wrap;">
+            <a class="wide-button secondary" href="?page=shop">Kembali Belanja</a>
+            <button id="checkout-button" class="wide-button primary" type="button">Checkout</button>
+          </div>
+          <div id="cart-empty-message" class="content-panel" style="display:none;margin-top:20px;">
+            <div class="panel-body"><p>Keranjang kosong. Ayo pilih produk di halaman Shop.</p></div>
+          </div>
+        </div>
+      </section>
     <?php elseif ($page === 'checkout'): ?>
-      <section class="page-title"><h1>Proses Pembayaran</h1><p>Isi data pembayaran dan alamat pengiriman Anda untuk menyelesaikan pesanan.</p></section>
-      <div class="content-panel"><div class="panel-body"><h2>Payment details</h2><form><div class="field"><label for="card-name">Cardholder Name</label><input id="card-name" type="text" placeholder="Nama pada kartu"></div><div class="field"><label for="card-number">Card Number</label><input id="card-number" type="text" placeholder="1234 5678 9123 4567"></div><div class="field"><label for="expiry">Expiry Date</label><input id="expiry" type="text" placeholder="MM/YY"></div><div class="field"><label for="cvc">CVC</label><input id="cvc" type="text" placeholder="CVC"></div><button class="wide-button primary" type="button">Pay Now</button></form></div></div>
+      <section class="page-title"><h1>Proses Pembayaran</h1><p>Isi data pengiriman dan pembayaran untuk menyelesaikan pesanan. Ini hanya prototipe skenario checkout.</p></section>
+      <div class="content-panel">
+        <div class="panel-body">
+          <div id="checkout-summary">
+            <h2>Ringkasan Pesanan</h2>
+            <table>
+              <thead><tr><th>Nama Produk</th><th>Qty</th><th>Harga</th></tr></thead>
+              <tbody id="checkout-items">
+                <tr><td colspan="3" style="text-align:center;color:var(--muted);">Tidak ada item di keranjang.</td></tr>
+              </tbody>
+              <tfoot><tr class="total-row"><td>Total</td><td></td><td id="checkout-total">Rp 0</td></tr></tfoot>
+            </table>
+          </div>
+          <h2>Payment details</h2>
+          <form id="checkout-form">
+            <div class="field"><label for="card-name">Cardholder Name</label><input id="card-name" type="text" placeholder="Nama pada kartu"></div>
+            <div class="field"><label for="card-number">Card Number</label><input id="card-number" type="text" placeholder="1234 5678 9123 4567"></div>
+            <div class="field"><label for="expiry">Expiry Date</label><input id="expiry" type="text" placeholder="MM/YY"></div>
+            <div class="field"><label for="cvc">CVC</label><input id="cvc" type="text" placeholder="CVC"></div>
+            <button class="wide-button primary" type="button" id="pay-now-button">Pay Now</button>
+          </form>
+          <div id="checkout-message" class="admin-message" style="display:none;margin-top:18px;"></div>
+        </div>
+      </div>
     <?php elseif ($page === 'admin-login'): ?>
       <section class="page-title"><h1>Admin Login</h1><p>Gunakan akun admin untuk menambah produk buket dan katalog.</p></section>
       <section class="form-panel"><div class="panel-body"><?php if ($adminError): ?><div class="admin-message admin-error"><?= htmlspecialchars($adminError) ?></div><?php endif; ?><form method="post"><div class="field"><label for="admin-username">Username</label><input id="admin-username" name="username" type="text" required></div><div class="field"><label for="admin-password">Password</label><input id="admin-password" name="password" type="password" required></div><button class="wide-button primary" type="submit">Login Admin</button></form></div></section>
@@ -576,81 +415,8 @@ $blogPosts = [
             <button type="button" id="scan-unsorted" class="button-secondary">Scan Unsorted</button>
           </div>
         </form>
-
-        <?php if (!empty($assetSortResults)): ?>
-            <div class="asset-sort-results">
-                <h3>Hasil Sortir</h3>
-                <ul>
-                    <?php foreach ($assetSortResults as $result): ?>
-                        <li><?= htmlentities($result['name']) ?> - <?= htmlentities($result['status']) ?></li>
-                    <?php endforeach; ?>
-                </ul>
-            </div>
-        <?php endif; ?>
+        <div id="asset-sort-results" class="asset-sort-results" style="display:none;"></div>
     </section>
-
-    <script>
-        const dropArea = document.getElementById('upload-drop-area');
-        const fileInput = document.getElementById('asset-upload');
-        const browseButton = document.getElementById('browse-files');
-      const scanBtn = document.getElementById('scan-unsorted');
-
-        browseButton.addEventListener('click', () => fileInput.click());
-
-        ['dragenter', 'dragover'].forEach(eventName => {
-            dropArea.addEventListener(eventName, event => {
-                event.preventDefault();
-                event.stopPropagation();
-                dropArea.classList.add('highlight');
-            });
-        });
-
-        ['dragleave', 'drop'].forEach(eventName => {
-            dropArea.addEventListener(eventName, event => {
-                event.preventDefault();
-                event.stopPropagation();
-                dropArea.classList.remove('highlight');
-            });
-        });
-
-        dropArea.addEventListener('drop', event => {
-            const files = Array.from(event.dataTransfer.files);
-            if (!files.length) {
-                return;
-            }
-            fileInput.files = new DataTransfer().files;
-            const dataTransfer = new DataTransfer();
-            files.forEach(file => dataTransfer.items.add(file));
-            fileInput.files = dataTransfer.files;
-            dropArea.querySelector('p').textContent = files.length + ' file siap diunggah.';
-        });
-
-        scanBtn?.addEventListener('click', () => {
-          scanBtn.disabled = true;
-          scanBtn.textContent = 'Scanning...';
-          fetch('asset_sorter.php')
-            .then(r => r.json())
-            .then(result => {
-              const list = document.createElement('ul');
-              if (result.items && result.items.length) {
-                result.items.forEach(i => {
-                  const li = document.createElement('li');
-                  li.textContent = i.name + ' → ' + (i.target || i.status);
-                  list.appendChild(li);
-                });
-              } else {
-                list.textContent = 'No files processed.';
-              }
-              const container = document.querySelector('.asset-sort-results') || document.createElement('div');
-              container.className = 'asset-sort-results';
-              container.innerHTML = '<h3>Hasil Scan</h3>';
-              container.appendChild(list);
-              document.getElementById('asset-upload-form').after(container);
-            })
-            .catch(err => alert('Gagal melakukan scan: ' + err.message))
-            .finally(() => { scanBtn.disabled = false; scanBtn.textContent = 'Scan Unsorted'; });
-        });
-    </script>
 
 <?php elseif ($page === 'admin-products'): ?>
       <?php if (!is_admin_logged_in()): header('Location: ?page=admin-login'); exit; endif; ?>
@@ -679,50 +445,7 @@ $blogPosts = [
       <div><h3>Visit Us</h3><p>Jl. Sulaiman No.12A 10, RT.10/RW.3, Sukabumi Utara</p><p>Kec. KB. Jeruk, Kota Jakarta Barat, Jakarta</p><p>Opening Hours Mon - Sunday: 08.00 - 20.00</p></div>
     </footer>
   </main>
-  <script>
-    document.addEventListener('DOMContentLoaded', function() {
-      var brand = document.querySelector('.brand');
-      if (brand) {
-        brand.addEventListener('click', function() {
-          location.href = '?page=home';
-        });
-      }
-
-      var form = document.getElementById('create-account-form');
-      if (!form) {
-        return;
-      }
-
-      var message = document.getElementById('create-account-message');
-      form.addEventListener('submit', function(event) {
-        event.preventDefault();
-        var payload = {
-          username: document.getElementById('account-username').value,
-          email: document.getElementById('account-email').value,
-          password: document.getElementById('account-password').value
-        };
-
-        fetch('api.php?action=create_account', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        }).then(function(response) {
-          return response.json();
-        }).then(function(json) {
-          if (json.success) {
-            message.textContent = json.message;
-            message.style.color = '#1f5f32';
-          } else {
-            message.textContent = json.message;
-            message.style.color = '#7d2222';
-          }
-        }).catch(function() {
-          message.textContent = 'Server tidak merespons. Coba lagi nanti.';
-          message.style.color = '#7d2222';
-        });
-      });
-    });
-  </script>
+  <script src="assets/js/main.js"></script>
   <a class="whatsapp-fab" href="https://wa.me/6282122490002" target="_blank" rel="noreferrer" aria-label="WhatsApp">💬</a>
 </body>
 </html>

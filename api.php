@@ -1,12 +1,7 @@
 <?php
 declare(strict_types=1);
 
-// Prefer SQLite-backed DB if available, otherwise use JSON fallback.
-if (class_exists('SQLite3') && is_file(__DIR__ . '/db.php')) {
-    require_once __DIR__ . '/db.php';
-} else {
-    require_once __DIR__ . '/db-fallback.php';
-}
+require_once __DIR__ . '/db.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -52,16 +47,11 @@ if ($customerCount >= $maxAccounts) {
     send_json(429, ['success' => false, 'message' => 'Batas akun pelanggan telah tercapai (' . $maxAccounts . ' akun).']);
 }
 
-$db = get_db();
-$existingUsername = $db->prepare('SELECT id FROM users WHERE username = :username');
-$existingUsername->bindValue(':username', $username, SQLITE3_TEXT);
-if ($existingUsername->execute()->fetchArray(SQLITE3_ASSOC)) {
+if (is_username_taken($username)) {
     send_json(409, ['success' => false, 'message' => 'Username sudah digunakan.']);
 }
 
-$existingEmail = $db->prepare('SELECT id FROM users WHERE email = :email');
-$existingEmail->bindValue(':email', $email, SQLITE3_TEXT);
-if ($existingEmail->execute()->fetchArray(SQLITE3_ASSOC)) {
+if (is_email_taken($email)) {
     send_json(409, ['success' => false, 'message' => 'Email sudah terdaftar.']);
 }
 
