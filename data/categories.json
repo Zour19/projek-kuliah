@@ -2,7 +2,7 @@
     {
         "id": 1,
         "name": "Bouquets",
-        "slug": "bouquets",
+        "slug": "bouquet",
         "description": "Hand-tied bouquets for every occasion.",
         "image": "assets/images/bouquets/bouqet.jpeg",
         "sort_order": 1,
