@@ -94,7 +94,7 @@
         "slug": "modern-standing-design",
         "description": "Modern and contemporary standing flower design.",
         "price": 420000,
-        "image": "assets/images/standing-flowers/standingbunga6.jpeg",
+        "image": "assets/images/standing-flowers/standingbunga5.jpeg",
         "stock": 32,
         "is_featured": false
     },
@@ -149,7 +149,7 @@
         "slug": "royal-bloom-box",
         "description": "Royal bloom box with premium selection.",
         "price": 350000,
-        "image": "assets/images/bloom-box/boxx.jpeg",
+        "image": "assets/images/bloom-box/box12.jpeg",
         "stock": 25,
         "is_featured": true
     },
@@ -160,7 +160,7 @@
         "slug": "signature-floral-bundle",
         "description": "Loose fresh flowers ready for custom arrangements.",
         "price": 120000,
-        "image": "assets/images/flowers/bunga12.jpeg",
+        "image": "assets/images/flowers/bunga.jpeg",
         "stock": 60,
         "is_featured": false
     },
@@ -171,7 +171,7 @@
         "slug": "garden-bloom-set",
         "description": "Assorted garden flowers with lush greenery.",
         "price": 135000,
-        "image": "assets/images/flowers/bunga23.jpeg",
+        "image": "assets/images/flowers/bunga3.jpeg",
         "stock": 45,
         "is_featured": false
     },
@@ -215,7 +215,7 @@
         "slug": "classic-flower-bundle",
         "description": "Classic flowers bundle for any occasion.",
         "price": 125000,
-        "image": "assets/images/flowers/bunga21.jpeg",
+        "image": "assets/images/flowers/bunga_.jpeg",
         "stock": 65,
         "is_featured": false
     },

@@ -1,3 +1,0 @@
-php>=8.0
-ext-sqlite3
-php-json

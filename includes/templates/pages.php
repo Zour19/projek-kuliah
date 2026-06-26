@@ -126,7 +126,7 @@ require_once __DIR__ . '/page-home.php';
         </div>
       </section>
     <?php elseif ($page === 'checkout'): ?>
-      <section class="page-title"><h1>Proses Pembayaran</h1><p>Isi data pengiriman dan pembayaran untuk menyelesaikan pesanan. Ini hanya prototipe skenario checkout.</p></section>
+      <section class="page-title"><h1>Proses Pembayaran</h1><p>Isi data pengiriman lalu lanjutkan pembayaran melalui WhatsApp.</p></section>
       <div class="content-panel">
         <div class="panel-body">
           <div id="checkout-summary">
@@ -141,10 +141,8 @@ require_once __DIR__ . '/page-home.php';
           </div>
           <h2>Payment details</h2>
           <form id="checkout-form">
-            <div class="field"><label for="card-name">Cardholder Name</label><input id="card-name" type="text" placeholder="Nama pada kartu"></div>
-            <div class="field"><label for="card-number">Card Number</label><input id="card-number" type="text" placeholder="1234 5678 9123 4567"></div>
-            <div class="field"><label for="expiry">Expiry Date</label><input id="expiry" type="text" placeholder="MM/YY"></div>
-            <div class="field"><label for="cvc">CVC</label><input id="cvc" type="text" placeholder="CVC"></div>
+            <div class="field"><label for="card-name">Nama Pemesan</label><input id="card-name" type="text" placeholder="Nama lengkap"></div>
+            <div class="field"><label for="expiry">Tanggal Pesan</label><input id="expiry" type="text" placeholder="MM/YY"></div>
             <button class="wide-button primary" type="button" id="pay-now-button">Pay Now</button>
           </form>
           <div id="checkout-message" class="admin-message" style="display:none;margin-top:18px;"></div>
@@ -155,12 +153,67 @@ require_once __DIR__ . '/page-home.php';
       <section class="form-panel"><div class="panel-body"><?php if ($adminError): ?><div class="admin-message admin-error"><?= htmlspecialchars($adminError) ?></div><?php endif; ?><form method="post"><div class="field"><label for="admin-username">Username</label><input id="admin-username" name="username" type="text" required></div><div class="field"><label for="admin-password">Password</label><input id="admin-password" name="password" type="password" required></div><button class="wide-button primary" type="submit">Login Admin</button></form></div></section>
     <?php elseif ($page === 'admin-dashboard'): ?>
       <?php if (!is_admin_logged_in()): header('Location: ?page=admin-login'); exit; endif; ?>
-      <section class="page-title"><h1>Admin Dashboard</h1><p>Selamat datang admin. Tambah produk baru atau kelola koleksi bunga.</p></section>
-      <div class="content-panel"><div class="panel-body"><h2>Kategori Produk</h2><ul><?php foreach ($categories as $cat): ?><li><a href="?page=<?= htmlspecialchars($cat['slug']) ?>"><?= htmlspecialchars($cat['name']) ?></a></li><?php endforeach; ?></ul><p><a class="button-secondary" href="?page=add-product">Tambah Produk Baru</a></p><p style="margin-top:14px;"><a class="button-secondary" href="?page=admin-products">Lihat Semua Produk</a></p><p style="margin-top:14px;"><a class="button-secondary" href="?page=admin-assets">Asset Sorter</a></p></div></div>
+      <section class="page-title"><h1>Admin Dashboard</h1><p>Kelola produk, lihat kategori, dan tambahkan item baru dari panel admin.</p></section>
+      <div class="content-panel">
+        <div class="panel-body">
+          <h2>Admin Panel</h2>
+          <p>Gunakan tombol di bawah untuk menambahkan produk, melihat daftar produk, atau mengelola asset.</p>
+          <div style="display:flex;flex-wrap:wrap;gap:14px;margin-top:24px;">
+            <a class="wide-button primary" href="?page=add-product">Tambah Produk Baru</a>
+            <a class="wide-button secondary" href="?page=admin-products">Lihat Semua Produk</a>
+            <a class="wide-button secondary" href="?page=admin-assets">Asset Sorter</a>
+          </div>
+          <div style="margin-top:32px;">
+            <h3>Kategori Produk</h3>
+            <ul>
+              <?php foreach ($categories as $cat): ?>
+                <li><a href="?page=<?= htmlspecialchars($cat['slug']) ?>"><?= htmlspecialchars($cat['name']) ?></a></li>
+              <?php endforeach; ?>
+            </ul>
+          </div>
+        </div>
+      </div>
     <?php elseif ($page === 'add-product'): ?>
       <?php if (!is_admin_logged_in()): header('Location: ?page=admin-login'); exit; endif; ?>
       <section class="page-title"><h1>Tambah Produk</h1><p>Tambah buket atau produk baru ke katalog dengan mudah.</p></section>
-      <section class="form-panel"><div class="panel-body"><?php if ($adminError): ?><div class="admin-message admin-error"><?= htmlspecialchars($adminError) ?></div><?php endif; ?><?php if ($adminSuccess): ?><div class="admin-message admin-success"><?= htmlspecialchars($adminSuccess) ?></div><?php endif; ?><form method="post" enctype="multipart/form-data"><div class="field"><label for="product-name">Nama Produk</label><input id="product-name" name="name" type="text" required></div><div class="field"><label for="product-price">Harga</label><input id="product-price" name="price" type="number" min="1" required></div><div class="field"><label for="product-category">Kategori</label><select id="product-category" name="category" required><?php foreach ($categories as $cat): ?><option value="<?= htmlspecialchars($cat['slug']) ?>"><?= htmlspecialchars($cat['name']) ?></option><?php endforeach; ?></select></div><div class="field"><label for="product-image-upload">Upload Gambar</label><input id="product-image-upload" name="image_upload" type="file" accept="image/*"></div><div class="field"><label for="product-image">Atau masukkan path gambar</label><input id="product-image" name="image" type="text" placeholder="assets/images/bouquets/filename.jpg"></div><button class="wide-button primary" type="submit">Simpan Produk</button></form></div></section>
+      <section class="form-panel">
+        <div class="panel-body">
+          <?php if ($adminError): ?>
+            <div class="admin-message admin-error"><?= htmlspecialchars($adminError) ?></div>
+          <?php endif; ?>
+          <?php if ($adminSuccess): ?>
+            <div class="admin-message admin-success"><?= htmlspecialchars($adminSuccess) ?></div>
+          <?php endif; ?>
+          <form method="post" enctype="multipart/form-data">
+            <div class="field">
+              <label for="product-name">Nama Produk</label>
+              <input id="product-name" name="name" type="text" required>
+            </div>
+            <div class="field">
+              <label for="product-price">Harga</label>
+              <input id="product-price" name="price" type="number" min="1" required>
+            </div>
+            <div class="field">
+              <label for="product-category">Kategori</label>
+              <select id="product-category" name="category" required>
+                <?php foreach ($categories as $cat): ?>
+                  <option value="<?= htmlspecialchars($cat['slug']) ?>"><?= htmlspecialchars($cat['name']) ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+            <div class="field">
+              <label for="product-image-upload">Upload Gambar</label>
+              <input id="product-image-upload" name="image_upload" type="file" accept="image/*">
+              <p class="hint">Gunakan upload atau masukkan path gambar di bawah.</p>
+            </div>
+            <div class="field">
+              <label for="product-image">Atau masukkan path gambar</label>
+              <input id="product-image" name="image" type="text" placeholder="assets/images/bouquets/filename.jpg">
+            </div>
+            <button class="wide-button primary" type="submit">Simpan Produk</button>
+          </form>
+        </div>
+      </section>
     <?php elseif ($page === 'admin-assets'): ?>
       <?php if (!is_admin_logged_in()): header('Location: ?page=admin-login'); exit; endif; ?>
       <section class="section-admin-assets">
@@ -189,7 +242,46 @@ require_once __DIR__ . '/page-home.php';
     <?php elseif ($page === 'admin-products'): ?>
       <?php if (!is_admin_logged_in()): header('Location: ?page=admin-login'); exit; endif; ?>
       <section class="page-title"><h1>Daftar Produk</h1><p>Semua produk yang terdaftar di database.</p></section>
-      <section class="content-panel"><div class="panel-body"><table style="width:100%;border-collapse:collapse;"><thead><tr><th style="text-align:left;padding:12px;border-bottom:1px solid rgba(0,0,0,0.08);">Gambar</th><th style="text-align:left;padding:12px;border-bottom:1px solid rgba(0,0,0,0.08);">Nama</th><th style="text-align:left;padding:12px;border-bottom:1px solid rgba(0,0,0,0.08);">Kategori</th><th style="text-align:left;padding:12px;border-bottom:1px solid rgba(0,0,0,0.08);">Harga</th><th style="text-align:left;padding:12px;border-bottom:1px solid rgba(0,0,0,0.08);">Tanggal</th></tr></thead><tbody><?php if (empty($allProducts)): ?><tr><td colspan="5" style="padding:18px;text-align:center;color:var(--muted);">Belum ada produk.</td></tr><?php else: ?><?php foreach ($allProducts as $item): ?><tr><td style="padding:12px;"><img src="<?= htmlspecialchars($item['image'] ?: 'assets/hero.png') ?>" alt="<?= htmlspecialchars($item['name']) ?>" style="width:80px;height:60px;object-fit:cover;border-radius:12px;"></td><td style="padding:12px;vertical-align:middle;"><?= htmlspecialchars($item['name']) ?></td><td style="padding:12px;vertical-align:middle;"><?= htmlspecialchars($item['category_name']) ?></td><td style="padding:12px;vertical-align:middle;"><?= formatPrice((int)$item['price']) ?></td><td style="padding:12px;vertical-align:middle;"><?= htmlspecialchars($item['created_at']) ?></td></tr><?php endforeach; ?><?php endif; ?></tbody></table></div></section>
+      <section class="content-panel">
+        <div class="panel-body">
+          <?php if ($adminError): ?><div class="admin-message admin-error"><?= htmlspecialchars($adminError) ?></div><?php endif; ?>
+          <?php if ($adminSuccess): ?><div class="admin-message admin-success"><?= htmlspecialchars($adminSuccess) ?></div><?php endif; ?>
+          <table style="width:100%;border-collapse:collapse;">
+            <thead>
+              <tr>
+                <th style="text-align:left;padding:12px;border-bottom:1px solid rgba(0,0,0,0.08);">Gambar</th>
+                <th style="text-align:left;padding:12px;border-bottom:1px solid rgba(0,0,0,0.08);">Nama</th>
+                <th style="text-align:left;padding:12px;border-bottom:1px solid rgba(0,0,0,0.08);">Kategori</th>
+                <th style="text-align:left;padding:12px;border-bottom:1px solid rgba(0,0,0,0.08);">Harga</th>
+                <th style="text-align:left;padding:12px;border-bottom:1px solid rgba(0,0,0,0.08);">Tanggal</th>
+                <th style="text-align:left;padding:12px;border-bottom:1px solid rgba(0,0,0,0.08);">Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              <?php if (empty($allProducts)): ?>
+                <tr><td colspan="6" style="padding:18px;text-align:center;color:var(--muted);">Belum ada produk.</td></tr>
+              <?php else: ?>
+                <?php foreach ($allProducts as $item): ?>
+                  <?php $itemImageUrl = resolveProductImage($item, $item['category_slug'] ?? null); ?>
+                  <tr>
+                    <td style="padding:12px;"><img src="<?= htmlspecialchars($itemImageUrl) ?>" alt="<?= htmlspecialchars($item['name']) ?>" style="width:80px;height:60px;object-fit:cover;border-radius:12px;"></td>
+                    <td style="padding:12px;vertical-align:middle;"><?= htmlspecialchars($item['name']) ?></td>
+                    <td style="padding:12px;vertical-align:middle;"><?= htmlspecialchars($item['category_name']) ?></td>
+                    <td style="padding:12px;vertical-align:middle;"><?= formatPrice((int)$item['price']) ?></td>
+                    <td style="padding:12px;vertical-align:middle;"><?= htmlspecialchars($item['created_at']) ?></td>
+                    <td style="padding:12px;vertical-align:middle;">
+                      <form method="post" onsubmit="return confirm('Hapus produk ini?');" style="display:inline;">
+                        <input type="hidden" name="delete_id" value="<?= (int)$item['id'] ?>">
+                        <button class="wide-button secondary" type="submit" style="width:auto;padding:10px 14px;">Hapus</button>
+                      </form>
+                    </td>
+                  </tr>
+                <?php endforeach; ?>
+              <?php endif; ?>
+            </tbody>
+          </table>
+        </div>
+      </section>
     <?php elseif ($category): ?>
       <section class="page-title"><h1><?= htmlspecialchars($category['name']) ?></h1><p>Koleksi <?= htmlspecialchars($category['name']) ?> terpilih dengan desain premium dan harga terbaik.</p></section>
       <section class="catalog-grid">

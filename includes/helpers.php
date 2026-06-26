@@ -199,6 +199,34 @@ function scan_unsorted_assets(): array
     return $results;
 }
 
+function resolveProductImage(array $item, ?string $categorySlug = null): string
+{
+    $image = trim((string) ($item['image'] ?? ''));
+    if ($image && is_file(__DIR__ . '/../' . ltrim($image, '/'))) {
+        return $image;
+    }
+
+    $slug = $categorySlug ?: ($item['category_slug'] ?? '');
+    if (!$slug && !empty($item['category_id'])) {
+        $category = get_category_by_id((int) $item['category_id']);
+        if ($category) {
+            $slug = $category['slug'];
+        }
+    }
+
+    if ($slug && defined('CATEGORY_IMAGE_PATHS') && isset(CATEGORY_IMAGE_PATHS[$slug])) {
+        $folder = __DIR__ . '/../' . ltrim(CATEGORY_IMAGE_PATHS[$slug], '/');
+        if (is_dir($folder)) {
+            $files = array_values(array_filter(scandir($folder), fn($name) => $name !== '.' && $name !== '..'));
+            if (!empty($files)) {
+                return CATEGORY_IMAGE_PATHS[$slug] . '/' . $files[0];
+            }
+        }
+    }
+
+    return 'assets/hero.png';
+}
+
 if (!function_exists('is_admin_logged_in')) {
     function is_admin_logged_in(): bool
     {
