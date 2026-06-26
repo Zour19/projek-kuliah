@@ -300,6 +300,45 @@ function get_user_by_username(string $username): ?array
     return null;
 }
 
+function get_user_by_email(string $email): ?array
+{
+    $db = get_db();
+    if ($db) {
+        $stmt = $db->prepare('SELECT * FROM users WHERE email = :email');
+        $stmt->bindValue(':email', $email, SQLITE3_TEXT);
+        $result = $stmt->execute();
+        $row = $result->fetchArray(SQLITE3_ASSOC);
+        return $row ?: null;
+    }
+
+    $users = load_json('users', []);
+    foreach ($users as $user) {
+        if (($user['email'] ?? '') === $email) {
+            return $user;
+        }
+    }
+
+    return null;
+}
+
+function authenticate_user(string $identifier, string $password): ?array
+{
+    $user = get_user_by_username($identifier);
+    if (!$user) {
+        $user = get_user_by_email($identifier);
+    }
+
+    if (!$user) {
+        return null;
+    }
+
+    if (!password_verify($password, (string) ($user['password'] ?? ''))) {
+        return null;
+    }
+
+    return $user;
+}
+
 function is_username_taken(string $username): bool
 {
     return get_user_by_username($username) !== null;

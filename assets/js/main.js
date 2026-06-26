@@ -36,6 +36,48 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
+  const loginForm = document.getElementById('customer-login-form');
+  const loginMessage = document.getElementById('login-message');
+  if (loginForm && loginMessage) {
+    loginForm.addEventListener('submit', function (event) {
+      event.preventDefault();
+      loginMessage.textContent = '';
+
+      const payload = {
+        identifier: document.getElementById('login-identifier').value.trim(),
+        password: document.getElementById('login-password').value,
+      };
+
+      fetch('api.php?action=login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+        .then((response) => response.json())
+        .then((json) => {
+          loginMessage.textContent = json.message || 'Terjadi kesalahan.';
+          loginMessage.style.color = json.success ? '#1f5f32' : '#7d2222';
+          if (json.success) {
+            window.location.href = '?page=home';
+          }
+        })
+        .catch(() => {
+          loginMessage.textContent = 'Server tidak merespons. Coba lagi nanti.';
+          loginMessage.style.color = '#7d2222';
+        });
+    });
+  }
+
+  const logoutButton = document.getElementById('logout-button');
+  if (logoutButton) {
+    logoutButton.addEventListener('click', () => {
+      fetch('api.php?action=logout', { method: 'POST' })
+        .then(() => {
+          window.location.reload();
+        });
+    });
+  }
+
   const cartCount = document.getElementById('cart-count');
   const cartItemsContainer = document.getElementById('cart-items');
   const cartTotal = document.getElementById('cart-total');
@@ -53,6 +95,7 @@ document.addEventListener('DOMContentLoaded', function () {
   function writeCart(items) {
     localStorage.setItem('matahari_cart', JSON.stringify(items));
     renderCart();
+    renderCheckout();
   }
 
   function renderCart() {
@@ -74,8 +117,19 @@ document.addEventListener('DOMContentLoaded', function () {
     const rows = items.map((item) => `
       <tr>
         <td>${item.name}</td>
-        <td>${item.qty}</td>
-        <td>Rp ${item.price.toLocaleString('id-ID')}</td>
+        <td>
+          <div class="qty-control">
+            <button class="qty-btn" type="button" data-action="decrease" data-id="${item.id}">−</button>
+            <span class="qty-value">${item.qty}</span>
+            <button class="qty-btn" type="button" data-action="increase" data-id="${item.id}">+</button>
+          </div>
+        </td>
+        <td>
+          <div class="cart-line-actions">
+            <span>Rp ${item.price.toLocaleString('id-ID')}</span>
+            <button class="text-link" type="button" data-action="remove" data-id="${item.id}">Hapus</button>
+          </div>
+        </td>
       </tr>
     `).join('');
 
@@ -109,6 +163,24 @@ document.addEventListener('DOMContentLoaded', function () {
     checkoutTotal.textContent = `Rp ${totalValue.toLocaleString('id-ID')}`;
   }
 
+  function updateCartItem(itemId, action) {
+    const items = readCart();
+    const existingIndex = items.findIndex((item) => item.id === itemId);
+    if (existingIndex === -1) {
+      return;
+    }
+
+    if (action === 'increase') {
+      items[existingIndex].qty += 1;
+    } else if (action === 'decrease') {
+      items[existingIndex].qty = Math.max(1, items[existingIndex].qty - 1);
+    } else if (action === 'remove') {
+      items.splice(existingIndex, 1);
+    }
+
+    writeCart(items);
+  }
+
   function addProductToCart(product) {
     const items = readCart();
     const existing = items.find((item) => item.id === product.id);
@@ -118,6 +190,21 @@ document.addEventListener('DOMContentLoaded', function () {
       items.push({ ...product, qty: 1 });
     }
     writeCart(items);
+  }
+
+  if (cartItemsContainer) {
+    cartItemsContainer.addEventListener('click', function (event) {
+      const button = event.target.closest('button[data-action]');
+      if (!button) {
+        return;
+      }
+
+      const action = button.dataset.action;
+      const itemId = Number(button.dataset.id);
+      if (action && Number.isFinite(itemId)) {
+        updateCartItem(itemId, action);
+      }
+    });
   }
 
   document.querySelectorAll('.add-to-cart').forEach((button) => {

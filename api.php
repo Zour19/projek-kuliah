@@ -3,9 +3,10 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/db.php';
 
+session_start();
 header('Content-Type: application/json; charset=utf-8');
 
-$action = $_GET['action'] ?? ''; 
+$action = $_GET['action'] ?? '';
 $method = $_SERVER['REQUEST_METHOD'];
 
 function send_json(int $status, array $payload): void
@@ -15,49 +16,82 @@ function send_json(int $status, array $payload): void
     exit;
 }
 
-if ($action !== 'create_account') {
-    send_json(400, ['success' => false, 'message' => 'Action tidak dikenali. Gunakan action=create_account.']);
+function read_request_payload(): array
+{
+    $body = file_get_contents('php://input');
+    $data = json_decode($body, true);
+    if (!is_array($data)) {
+        $data = $_POST;
+    }
+
+    return is_array($data) ? $data : [];
 }
 
 if ($method !== 'POST') {
     send_json(405, ['success' => false, 'message' => 'Metode harus POST']);
 }
 
-$body = file_get_contents('php://input');
-$data = json_decode($body, true);
-if (!is_array($data)) {
-    $data = $_POST;
+$data = read_request_payload();
+
+if ($action === 'create_account') {
+    $username = trim((string) ($data['username'] ?? ''));
+    $email = trim((string) ($data['email'] ?? ''));
+    $password = (string) ($data['password'] ?? '');
+
+    if ($username === '' || $email === '' || $password === '') {
+        send_json(422, ['success' => false, 'message' => 'Username, email, dan password harus diisi.']);
+    }
+
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        send_json(422, ['success' => false, 'message' => 'Email tidak valid.']);
+    }
+
+    $customerCount = get_customer_count();
+    $maxAccounts = (int) config('MAX_CUSTOMER_ACCOUNTS', 10);
+    if ($customerCount >= $maxAccounts) {
+        send_json(429, ['success' => false, 'message' => 'Batas akun pelanggan telah tercapai (' . $maxAccounts . ' akun).']);
+    }
+
+    if (is_username_taken($username)) {
+        send_json(409, ['success' => false, 'message' => 'Username sudah digunakan.']);
+    }
+
+    if (is_email_taken($email)) {
+        send_json(409, ['success' => false, 'message' => 'Email sudah terdaftar.']);
+    }
+
+    $created = create_customer_account($username, $email, $password);
+    if ($created) {
+        send_json(201, ['success' => true, 'message' => 'Akun berhasil dibuat.']);
+    }
+
+    send_json(500, ['success' => false, 'message' => 'Terjadi kesalahan saat membuat akun.']);
 }
 
-$username = trim((string) ($data['username'] ?? ''));
-$email = trim((string) ($data['email'] ?? ''));
-$password = (string) ($data['password'] ?? '');
+if ($action === 'login') {
+    $identifier = trim((string) ($data['identifier'] ?? ''));
+    $password = (string) ($data['password'] ?? '');
 
-if ($username === '' || $email === '' || $password === '') {
-    send_json(422, ['success' => false, 'message' => 'Username, email, dan password harus diisi.']);
+    if ($identifier === '' || $password === '') {
+        send_json(422, ['success' => false, 'message' => 'Email/username dan password harus diisi.']);
+    }
+
+    $user = authenticate_user($identifier, $password);
+    if ($user && (($user['role'] ?? '') === 'customer')) {
+        $_SESSION['customer_user'] = [
+            'id' => (int) ($user['id'] ?? 0),
+            'username' => (string) ($user['username'] ?? ''),
+            'email' => (string) ($user['email'] ?? ''),
+        ];
+        send_json(200, ['success' => true, 'message' => 'Login berhasil.', 'user' => $_SESSION['customer_user']]);
+    }
+
+    send_json(401, ['success' => false, 'message' => 'Email/username atau password salah.']);
 }
 
-if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-    send_json(422, ['success' => false, 'message' => 'Email tidak valid.']);
+if ($action === 'logout') {
+    unset($_SESSION['customer_user']);
+    send_json(200, ['success' => true, 'message' => 'Logout berhasil.']);
 }
 
-$customerCount = get_customer_count();
-$maxAccounts = (int) config('MAX_CUSTOMER_ACCOUNTS', 10);
-if ($customerCount >= $maxAccounts) {
-    send_json(429, ['success' => false, 'message' => 'Batas akun pelanggan telah tercapai (' . $maxAccounts . ' akun).']);
-}
-
-if (is_username_taken($username)) {
-    send_json(409, ['success' => false, 'message' => 'Username sudah digunakan.']);
-}
-
-if (is_email_taken($email)) {
-    send_json(409, ['success' => false, 'message' => 'Email sudah terdaftar.']);
-}
-
-$created = create_customer_account($username, $email, $password);
-if ($created) {
-    send_json(201, ['success' => true, 'message' => 'Akun berhasil dibuat.']);
-}
-
-send_json(500, ['success' => false, 'message' => 'Terjadi kesalahan saat membuat akun.']);
+send_json(400, ['success' => false, 'message' => 'Action tidak dikenali.']);
