@@ -225,14 +225,21 @@ document.addEventListener('DOMContentLoaded', function () {
 
   if (payNowButton) {
     payNowButton.addEventListener('click', () => {
+      const items = readCart();
+      const totalValue = items.reduce((sum, item) => sum + item.price * item.qty, 0);
+      const orderSummary = items.length
+        ? items.map((item) => `${item.name} x${item.qty}`).join(', ')
+        : 'Tidak ada item';
+      const message = `Halo, saya ingin memesan:%0A${orderSummary}%0A%0ATotal: Rp ${totalValue.toLocaleString('id-ID')}`;
+      const whatsappUrl = `https://wa.me/6282122490002?text=${message}`;
+
       if (checkoutMessage) {
         checkoutMessage.style.display = 'block';
-        checkoutMessage.textContent = 'Pembayaran berhasil disimulasikan. Terima kasih atas pesanan Anda!';
+        checkoutMessage.textContent = 'Mengalihkan ke WhatsApp...';
         checkoutMessage.style.color = '#1f5f32';
       }
-      localStorage.removeItem('matahari_cart');
-      renderCart();
-      renderCheckout();
+
+      window.location.href = whatsappUrl;
     });
   }
 

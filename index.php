@@ -83,36 +83,6 @@ function pageTitle(string $page): string
     return 'Matahari Florist';
 }
 
-function resolveProductImage(array $item, ?string $categorySlug = null): string
-{
-    $image = trim((string)($item['image'] ?? ''));
-    if ($image && is_file(__DIR__ . '/' . ltrim($image, '/'))) {
-        return $image;
-    }
-
-    $slug = $categorySlug ?: ($item['category_slug'] ?? '');
-    if (!$slug && !empty($item['category_id'])) {
-        foreach (get_all_categories() as $category) {
-            if ((int)$category['id'] === (int)$item['category_id']) {
-                $slug = $category['slug'];
-                break;
-            }
-        }
-    }
-
-    if ($slug && defined('CATEGORY_IMAGE_PATHS') && isset(CATEGORY_IMAGE_PATHS[$slug])) {
-        $folder = __DIR__ . '/' . ltrim(CATEGORY_IMAGE_PATHS[$slug], '/');
-        if (is_dir($folder)) {
-            $files = array_values(array_filter(scandir($folder), fn($name) => $name !== '.' && $name !== '..'));
-            if (!empty($files)) {
-                return CATEGORY_IMAGE_PATHS[$slug] . '/' . $files[0];
-            }
-        }
-    }
-
-    return 'assets/hero.png';
-}
-
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($page === 'admin-login') {
         $username = trim((string) ($_POST['username'] ?? ''));
@@ -177,6 +147,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
         }
+    }
+
+    if ($page === 'admin-products' && is_admin_logged_in()) {
+        $deleteId = (int) ($_POST['delete_id'] ?? 0);
+        if ($deleteId > 0) {
+            if (delete_product($deleteId)) {
+                $adminSuccess = 'Produk berhasil dihapus.';
+            } else {
+                $adminError = 'Gagal menghapus produk.';
+            }
+        }
+        $allProducts = get_all_products();
     }
 }
 

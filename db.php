@@ -51,9 +51,13 @@ function init_db(SQLite3 $db): void
         name TEXT NOT NULL,
         price INTEGER NOT NULL,
         image TEXT DEFAULT NULL,
+        description TEXT DEFAULT "",
+        stock INTEGER DEFAULT 0,
+        is_featured INTEGER DEFAULT 0,
         created_at TEXT NOT NULL,
         FOREIGN KEY(category_id) REFERENCES categories(id) ON DELETE CASCADE
     )');
+    ensure_products_schema($db);
 
     $db->exec('CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -67,6 +71,7 @@ function init_db(SQLite3 $db): void
     seed_categories($db);
     seed_admin($db);
     seed_products($db);
+    import_products_from_json($db, load_json('products', []));
 }
 
 function seed_categories(SQLite3 $db): void
@@ -115,6 +120,12 @@ function seed_products(SQLite3 $db): void
         return;
     }
 
+    $jsonProducts = load_json('products', []);
+    if (!empty($jsonProducts)) {
+        import_products_from_json($db, $jsonProducts);
+        return;
+    }
+
     $samples = [
         ['category' => 'bouquet', 'name' => 'Golden Rays Bouquet', 'price' => 469000, 'image' => 'assets/images/bouquets/golden-rays.jpg'],
         ['category' => 'bouquet', 'name' => 'Serenata Bouquet', 'price' => 349000, 'image' => 'assets/images/bouquets/serenata.jpg'],
@@ -125,7 +136,7 @@ function seed_products(SQLite3 $db): void
     ];
 
     $categoryStmt = $db->prepare('SELECT id FROM categories WHERE slug = :slug');
-    $productStmt = $db->prepare('INSERT INTO products (category_id, name, price, image, created_at) VALUES (:category_id, :name, :price, :image, :created_at)');
+    $productStmt = $db->prepare('INSERT INTO products (category_id, name, price, image, description, stock, is_featured, created_at) VALUES (:category_id, :name, :price, :image, :description, :stock, :is_featured, :created_at)');
 
     foreach ($samples as $sample) {
         $categoryStmt->bindValue(':slug', $sample['category'], SQLITE3_TEXT);
@@ -137,9 +148,104 @@ function seed_products(SQLite3 $db): void
         $productStmt->bindValue(':name', $sample['name'], SQLITE3_TEXT);
         $productStmt->bindValue(':price', $sample['price'], SQLITE3_INTEGER);
         $productStmt->bindValue(':image', $sample['image'], SQLITE3_TEXT);
+        $productStmt->bindValue(':description', '', SQLITE3_TEXT);
+        $productStmt->bindValue(':stock', 0, SQLITE3_INTEGER);
+        $productStmt->bindValue(':is_featured', 0, SQLITE3_INTEGER);
         $productStmt->bindValue(':created_at', date('Y-m-d H:i:s'), SQLITE3_TEXT);
         $productStmt->execute();
     }
+}
+
+function import_products_from_json(SQLite3 $db, array $jsonProducts): void
+{
+    $checkStmt = $db->prepare('SELECT id FROM products WHERE name = :name AND image = :image LIMIT 1');
+    $insertStmt = $db->prepare('INSERT INTO products (category_id, name, price, image, description, stock, is_featured, created_at) VALUES (:category_id, :name, :price, :image, :description, :stock, :is_featured, :created_at)');
+    $updateStmt = $db->prepare('UPDATE products SET category_id = :category_id, price = :price, image = :image, description = :description, stock = :stock, is_featured = :is_featured WHERE id = :id');
+
+    foreach ($jsonProducts as $product) {
+        if (!is_array($product)) {
+            continue;
+        }
+
+        $name = trim((string) ($product['name'] ?? ''));
+        $image = trim((string) ($product['image'] ?? ''));
+        $categoryId = (int) ($product['category_id'] ?? 0);
+        $price = max(0, (int) ($product['price'] ?? 0));
+        $description = trim((string) ($product['description'] ?? ''));
+        $stock = max(0, (int) ($product['stock'] ?? 0));
+        $isFeatured = !empty($product['is_featured']) ? 1 : 0;
+
+        if ($name === '' || $price <= 0 || $categoryId <= 0 || $image === '') {
+            continue;
+        }
+
+        $checkStmt->bindValue(':name', $name, SQLITE3_TEXT);
+        $checkStmt->bindValue(':image', $image, SQLITE3_TEXT);
+        $existing = $checkStmt->execute()->fetchArray(SQLITE3_ASSOC);
+
+        if ($existing) {
+            $updateStmt->bindValue(':category_id', $categoryId, SQLITE3_INTEGER);
+            $updateStmt->bindValue(':price', $price, SQLITE3_INTEGER);
+            $updateStmt->bindValue(':image', $image, SQLITE3_TEXT);
+            $updateStmt->bindValue(':description', $description, SQLITE3_TEXT);
+            $updateStmt->bindValue(':stock', $stock, SQLITE3_INTEGER);
+            $updateStmt->bindValue(':is_featured', $isFeatured, SQLITE3_INTEGER);
+            $updateStmt->bindValue(':id', (int) $existing['id'], SQLITE3_INTEGER);
+            $updateStmt->execute();
+            continue;
+        }
+
+        $insertStmt->bindValue(':category_id', $categoryId, SQLITE3_INTEGER);
+        $insertStmt->bindValue(':name', $name, SQLITE3_TEXT);
+        $insertStmt->bindValue(':price', $price, SQLITE3_INTEGER);
+        $insertStmt->bindValue(':image', $image, SQLITE3_TEXT);
+        $insertStmt->bindValue(':description', $description, SQLITE3_TEXT);
+        $insertStmt->bindValue(':stock', $stock, SQLITE3_INTEGER);
+        $insertStmt->bindValue(':is_featured', $isFeatured, SQLITE3_INTEGER);
+        $insertStmt->bindValue(':created_at', date('Y-m-d H:i:s'), SQLITE3_TEXT);
+        $insertStmt->execute();
+    }
+}
+
+function ensure_products_schema(SQLite3 $db): void
+{
+    $existingColumns = [];
+    $result = $db->query('PRAGMA table_info(products)');
+    while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+        $existingColumns[$row['name']] = true;
+    }
+
+    $schemaUpdates = [
+        'description' => 'TEXT DEFAULT ""',
+        'stock' => 'INTEGER DEFAULT 0',
+        'is_featured' => 'INTEGER DEFAULT 0',
+    ];
+
+    foreach ($schemaUpdates as $column => $definition) {
+        if (!isset($existingColumns[$column])) {
+            $db->exec(sprintf('ALTER TABLE products ADD COLUMN %s %s', $column, $definition));
+        }
+    }
+}
+
+function get_category_by_id(int $id): ?array
+{
+    $db = get_db();
+    if ($db) {
+        $stmt = $db->prepare('SELECT * FROM categories WHERE id = :id');
+        $stmt->bindValue(':id', $id, SQLITE3_INTEGER);
+        $result = $stmt->execute();
+        $row = $result->fetchArray(SQLITE3_ASSOC);
+        return $row ?: null;
+    }
+
+    foreach (get_all_categories() as $category) {
+        if ((int)($category['id'] ?? 0) === $id) {
+            return $category;
+        }
+    }
+
+    return null;
 }
 
 function get_all_categories(): array
@@ -364,15 +470,18 @@ function is_email_taken(string $email): bool
     return false;
 }
 
-function add_product(int $categoryId, string $name, int $price, string $imagePath): bool
+function add_product(int $categoryId, string $name, int $price, string $imagePath, string $description = '', int $stock = 0, int $isFeatured = 0): bool
 {
     $db = get_db();
     if ($db) {
-        $stmt = $db->prepare('INSERT INTO products (category_id, name, price, image, created_at) VALUES (:category_id, :name, :price, :image, :created_at)');
+        $stmt = $db->prepare('INSERT INTO products (category_id, name, price, image, description, stock, is_featured, created_at) VALUES (:category_id, :name, :price, :image, :description, :stock, :is_featured, :created_at)');
         $stmt->bindValue(':category_id', $categoryId, SQLITE3_INTEGER);
         $stmt->bindValue(':name', $name, SQLITE3_TEXT);
         $stmt->bindValue(':price', $price, SQLITE3_INTEGER);
         $stmt->bindValue(':image', $imagePath, SQLITE3_TEXT);
+        $stmt->bindValue(':description', $description, SQLITE3_TEXT);
+        $stmt->bindValue(':stock', $stock, SQLITE3_INTEGER);
+        $stmt->bindValue(':is_featured', $isFeatured, SQLITE3_INTEGER);
         $stmt->bindValue(':created_at', date('Y-m-d H:i:s'), SQLITE3_TEXT);
         return (bool) $stmt->execute();
     }
@@ -386,8 +495,84 @@ function add_product(int $categoryId, string $name, int $price, string $imagePat
         'name' => $name,
         'price' => $price,
         'image' => $imagePath,
+        'description' => $description,
+        'stock' => $stock,
+        'is_featured' => (bool) $isFeatured,
         'created_at' => date('Y-m-d H:i:s'),
     ];
     save_json('products', $products);
+    return true;
+}
+
+function get_product_by_id(int $id): ?array
+{
+    $db = get_db();
+    if ($db) {
+        $stmt = $db->prepare('SELECT * FROM products WHERE id = :id');
+        $stmt->bindValue(':id', $id, SQLITE3_INTEGER);
+        $result = $stmt->execute();
+        $row = $result->fetchArray(SQLITE3_ASSOC);
+        return $row ?: null;
+    }
+
+    $products = load_json('products', []);
+    foreach ($products as $product) {
+        if ((int)($product['id'] ?? 0) === $id) {
+            return $product;
+        }
+    }
+
+    return null;
+}
+
+function update_product(int $id, int $categoryId, string $name, int $price, string $imagePath, string $description = '', int $stock = 0, int $isFeatured = 0): bool
+{
+    $db = get_db();
+    if ($db) {
+        $stmt = $db->prepare('UPDATE products SET category_id = :category_id, name = :name, price = :price, image = :image, description = :description, stock = :stock, is_featured = :is_featured WHERE id = :id');
+        $stmt->bindValue(':category_id', $categoryId, SQLITE3_INTEGER);
+        $stmt->bindValue(':name', $name, SQLITE3_TEXT);
+        $stmt->bindValue(':price', $price, SQLITE3_INTEGER);
+        $stmt->bindValue(':image', $imagePath, SQLITE3_TEXT);
+        $stmt->bindValue(':description', $description, SQLITE3_TEXT);
+        $stmt->bindValue(':stock', $stock, SQLITE3_INTEGER);
+        $stmt->bindValue(':is_featured', $isFeatured, SQLITE3_INTEGER);
+        $stmt->bindValue(':id', $id, SQLITE3_INTEGER);
+        return $stmt->execute() !== false;
+    }
+
+    $products = load_json('products', []);
+    foreach ($products as &$product) {
+        if ((int)($product['id'] ?? 0) === $id) {
+            $product['category_id'] = $categoryId;
+            $product['name'] = $name;
+            $product['price'] = $price;
+            $product['image'] = $imagePath;
+            $product['description'] = $description;
+            $product['stock'] = $stock;
+            $product['is_featured'] = (bool) $isFeatured;
+            save_json('products', $products);
+            return true;
+        }
+    }
+
+    return false;
+}
+
+function delete_product(int $id): bool
+{
+    $db = get_db();
+    if ($db) {
+        $stmt = $db->prepare('DELETE FROM products WHERE id = :id');
+        $stmt->bindValue(':id', $id, SQLITE3_INTEGER);
+        return $stmt->execute() !== false;
+    }
+
+    $products = load_json('products', []);
+    $updated = array_values(array_filter($products, fn($product) => (int)($product['id'] ?? 0) !== $id));
+    if (count($updated) === count($products)) {
+        return false;
+    }
+    save_json('products', $updated);
     return true;
 }
