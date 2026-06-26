@@ -31,10 +31,7 @@ php -S localhost:8000
 http://localhost:8000
 ```
 
-## Admin
 
-- Username: `admin`
-- Password: `admin123`
 
 ## Struktur penting
 
