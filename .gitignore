@@ -52,3 +52,4 @@ Thumbs.db
 # Testing
 /coverage/
 .phpunit.result.cache
+ADMIN_GUIDE.md
