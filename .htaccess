@@ -1,0 +1,33 @@
+# Disable directory listing
+Options -Indexes
+
+# Deny access to sensitive environment files if the server honors .htaccess
+<FilesMatch "^(?:\.env|\.gitignore|composer\.json|composer\.lock)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# Deny access to data/config folders and other sensitive paths using rewrite
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^data(/|$) - [F,L,NC]
+    RewriteRule ^config(/|$) - [F,L,NC]
+    RewriteRule ^\.git(/|$) - [F,L,NC]
+    RewriteRule ^(\.env)$ - [F,L,NC]
+</IfModule>
+
+# Additional fallback deny for files that might leak
+<FilesMatch "^(?:\.env|composer\.json|composer\.lock)$">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+  <IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+  </IfModule>
+</FilesMatch>

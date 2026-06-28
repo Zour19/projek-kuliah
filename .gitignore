@@ -1,54 +1,31 @@
-# Node modules
-node_modules/
-package-lock.json
-yarn.lock
+# Local environment settings
+/.env
 
-# PHP Composer
-vendor/
-composer.lock
+# Local environment file
+/.env
 
-# Laravel
-.env
-.env.*.php
-.env.*.local
-/bootstrap/cache/
-/storage/logs/
-/storage/framework/cache/
-/storage/framework/sessions/
-/storage/framework/views/
-/public/hot
+# Local SQLite database
+/data/database.sqlite
+/data/database.sqlite-journal
+/data/*.db
 
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-.DS_Store
+# User uploaded files
+/assets/uploads/
+/uploads/
 
-# Build artifacts
-/public/js/
-/public/css/
-/public/mix-manifest.json
-/public/hot
+# Dependency directories
+/vendor/
+/node_modules/
 
-# Python virtual environment
-.venv/
-venv/
-__pycache__/
+# IDE and editor settings
+/.idea/
+/.vscode/
 
-# Temporary files
-*.log
-npm-debug.log
-yarn-error.log
-.env.backup
-
-data/*.db
-
-# OS
+# System files
 .DS_Store
 Thumbs.db
+desktop.ini
 
-# Testing
-/coverage/
-.phpunit.result.cache
+# Logs
+*.log
+*.log.*
